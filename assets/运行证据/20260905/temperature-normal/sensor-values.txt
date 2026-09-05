@@ -1,0 +1,5 @@
+"sht3x":{"state":"online"
+"temperature_c":29.143
+"humidity_rh":64.395
+"bh1750":{"state":"online"
+"value_lux":113

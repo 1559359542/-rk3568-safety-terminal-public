@@ -1,0 +1,70 @@
+Sat Sep  5 04:20:02 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.973
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:03 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:05 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:06 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:07 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:08 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:09 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:10 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:11 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true
+Sat Sep  5 04:20:12 PM CST 2026
+"roi_event_count":4
+"roi_clear_count":3
+"preview_fps":29.974
+"roi_event_count":4
+"roi_clear_count":3
+"ai_alarm":true

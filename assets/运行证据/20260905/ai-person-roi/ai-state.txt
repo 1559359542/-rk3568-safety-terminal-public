@@ -1,0 +1,11 @@
+"ai_state":"running"
+"preview_frame_sequence":4498
+"frames_inferred":4498
+"preview_saved":4498
+"preview_failed":0
+"roi_event_count":3
+"roi_clear_count":3
+"preview_fps":29.968
+"roi_event_count":3
+"roi_clear_count":3
+"ai_alarm":false

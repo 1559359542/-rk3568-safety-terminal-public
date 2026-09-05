@@ -1,0 +1,27 @@
+#!/bin/sh
+
+DAEMON="/opt/state_snapshotd"
+PIDFILE="/var/run/state_snapshotd.pid"
+
+start() {
+    [ -x "$DAEMON" ] || { echo "Missing executable: $DAEMON"; return 1; }
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "state_snapshotd already running"
+        return 0
+    fi
+    rm -f "$PIDFILE"
+    start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "$DAEMON"
+}
+
+stop() {
+    [ -f "$PIDFILE" ] || return 0
+    start-stop-daemon -K -q -p "$PIDFILE"
+    status=$?
+    rm -f "$PIDFILE"
+    return "$status"
+}
+
+case "$1" in
+    start|stop|restart) "$1" ;;
+    *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac

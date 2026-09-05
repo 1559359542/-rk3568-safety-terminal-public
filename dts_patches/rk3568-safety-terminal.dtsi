@@ -1,0 +1,69 @@
+// SPDX-License-Identifier: GPL-2.0
+
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/rockchip.h>
+
+/ {
+    safety_terminal: safety-terminal {
+        compatible = "lyy,rk3568-safety-event";
+        status = "okay";
+
+        /*
+         * 磁铁贴合时接点闭合并拉低：logical inactive，不报警。
+         * 磁铁分离时接点断开并由上拉保持高电平：logical active。
+         */
+        door-gpios = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+
+        /*
+         * 由 safety_event 外部模块独占报警输出，不能再由 gpio-leds
+         * 或用户态 sysfs 同时申请/控制 GPIO3_C1。
+         */
+        alarm-gpios = <&gpio3 RK_PC1 GPIO_ACTIVE_HIGH>;
+        pwms = <&pwm15 0 500000 0>;
+        pwm-names = "alarm";
+
+        /* BH1750 已通过 i2cdetect -y 3 在 0x23 真实验证。 */
+        bh1750-bus-num = <3>;
+        bh1750-addr = <0x23>;
+        lux-low-threshold = <30>;
+        lux-recover-threshold = <50>;
+        lux-sample-period-ms = <1000>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&safety_terminal_door_pin
+                     &safety_terminal_alarm_led_pin>;
+    };
+};
+
+&pinctrl {
+    safety_event {
+        safety_terminal_door_pin: safety-terminal-door-pin {
+            rockchip,pins = <RK_GPIO3 RK_PA1 RK_FUNC_GPIO &pcfg_pull_up>;
+        };
+
+        safety_terminal_alarm_led_pin: safety-terminal-alarm-led-pin {
+            rockchip,pins = <RK_GPIO3 RK_PC1 RK_FUNC_GPIO &pcfg_pull_none>;
+        };
+    };
+};
+
+&pwm15 {
+    /* JP11-20: GPIO3_C5 复用为 PWM15 M0 输出。 */
+    pinctrl-names = "active";
+    pinctrl-0 = <&pwm15m0_pins>;
+    status = "okay";
+};
+
+&i2c3 {
+    sht30: sht3x@44 {
+        compatible = "sensirion,sht3x";
+        reg = <0x44>;
+        status = "okay";
+    };
+};
+&uart9 {
+    /* JP11-10/12: UART9 M1, 3.3 V TTL, for LD2410B. */
+    pinctrl-names = "default";
+    pinctrl-0 = <&uart9m1_xfer>;
+    status = "okay";
+};

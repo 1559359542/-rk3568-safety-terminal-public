@@ -1,0 +1,22 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Project-owned RK3568 safety terminal DTB source for ATK 10.1-inch MIPI LCD.
+ * It replaces the default 720p selector while preserving safety-terminal nodes.
+ */
+
+#define ATK_LCD_TYPE_MIPI_10P1_800X1280
+#define ATK_LCD_TYPE_HDMI
+
+#include "rk3568-atk-evb1-ddr4-v10.dtsi"
+#include "rk3568-linux.dtsi"
+#include "rk3568-lcds.dtsi"
+#include "rk3568-safety-terminal.dtsi"
+#include <dt-bindings/display/rockchip_vop.h>
+
+&vp0 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+};
+
+&vp1 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER1>;
+};

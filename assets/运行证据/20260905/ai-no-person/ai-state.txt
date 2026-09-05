@@ -1,0 +1,8 @@
+"camera_state":"online"
+"ai_state":"running"
+"preview_frame_sequence":2373
+"frames_inferred":2373
+"preview_saved":2373
+"preview_failed":0
+"preview_fps":29.968
+"camera_state":"online"

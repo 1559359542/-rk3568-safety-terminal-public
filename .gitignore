@@ -1,0 +1,43 @@
+# Local editor and OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Build outputs and generated binaries
+**/build/
+**/build-*/
+**/CMakeFiles/
+**/Module.symvers
+**/modules.order
+**/*.mod.c
+*.before
+*.o
+*.a
+*.so
+*.ko
+*.dtb
+*.img
+*.bin
+*.rknn
+
+# Checked-in source is kept; these known files are local compiled outputs
+userspace/ld2410_frame_parser/ld2410_frame_parser
+userspace/ld2410_uart_probe/ld2410_uart_probe
+userspace/mqtt_reporterd/mqtt_reporterd
+userspace/safety_alarmd/ai_alarm_bridge
+userspace/safety_alarmd/safety_alarmctl
+userspace/safety_alarmd/safety_alarmd
+userspace/safety_event_test/safety_event_uapi_test
+userspace/sqlite_eventd/sqlite_eventd
+userspace/state_snapshotd/state_snapshotd
+
+# Local evidence archives and runtime dumps
+evidence-*.tar
+evidence-*.tar.gz
+evidence-*.sha256
+*.log
+core
+
+# Keep assets/照片素材 images; only ignore temporary exports
+assets/照片素材/**/~$*

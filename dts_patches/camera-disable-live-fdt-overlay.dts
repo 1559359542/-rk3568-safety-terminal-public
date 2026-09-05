@@ -1,0 +1,43 @@
+/dts-v1/;
+/plugin/;
+
+/*
+ * Candidate overlay for the audited live RK3568 FDT.
+ * Do not deploy until the bootloader overlay path is verified.
+ */
+/ {
+    fragment@0 {
+        target-path = "/i2c@fe5d0000/imx335@1a";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@1 {
+        target-path = "/i2c@fe5d0000/ov13850@10";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@2 {
+        target-path = "/i2c@fe5d0000/imx415@1a";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@3 {
+        target-path = "/csi2-dphy0";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+
+    fragment@4 {
+        target-path = "/rkisp-vir0";
+        __overlay__ {
+            status = "disabled";
+        };
+    };
+};

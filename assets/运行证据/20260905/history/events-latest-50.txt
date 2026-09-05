@@ -1,0 +1,52 @@
+event_id    event_datetime            source      event_type  level       active      value       threshold   detail                                                           
+----------  ------------------------  ----------  ----------  ----------  ----------  ----------  ----------  -----------------------------------------------------------------
+565         2026-09-05T16:20:17+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+564         2026-09-05T16:20:17+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+563         2026-09-05T16:19:47+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+562         2026-09-05T16:19:47+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+561         2026-09-05T16:15:44+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+560         2026-09-05T16:15:44+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+559         2026-09-05T16:15:38+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+558         2026-09-05T16:15:38+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+557         2026-09-05T16:00:42+0800  ai          recovery    info        0                                   previous=offline current=running                                 
+556         2026-09-05T16:00:42+0800  camera      recovery    info        0                                   previous=offline current=online                                  
+555         2026-09-05T16:00:41+0800  ai          offline     warning     1                                   previous=starting current=offline                                
+554         2026-09-05T16:00:36+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+553         2026-09-05T16:00:36+0800  ai          recovery    info        0                                   previous=offline current=starting                                
+552         2026-09-05T16:00:36+0800  camera      offline     warning     1                                   previous=online current=starting                                 
+551         2026-09-05T16:00:34+0800  sht3x       recovery    info        0                                   previous=unknown current=online                                  
+550         2026-09-05T16:00:33+0800  sht3x       offline     warning     1                                   previous=online current=unknown                                  
+549         2026-09-05T16:00:33+0800  ai          offline     warning     1                                   previous=online current=offline                                  
+548         2026-09-05T16:00:33+0800  system      startup     info        1                                   sqlite_eventd started                                            
+547         2026-09-05T15:47:41+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+546         2026-09-05T15:47:41+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+545         2026-09-05T15:47:36+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+544         2026-09-05T15:47:36+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+543         2026-09-05T15:47:35+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+542         2026-09-05T15:47:35+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+541         2026-09-05T15:47:17+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+540         2026-09-05T15:47:17+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+539         2026-09-05T15:47:15+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+538         2026-09-05T15:47:15+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+537         2026-09-05T15:47:11+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+536         2026-09-05T15:47:11+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+535         2026-09-05T15:47:09+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+534         2026-09-05T15:47:09+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+533         2026-09-05T15:47:05+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+532         2026-09-05T15:47:05+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+531         2026-09-05T15:47:04+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+530         2026-09-05T15:47:04+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+529         2026-09-05T15:46:15+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+528         2026-09-05T15:46:15+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+527         2026-09-05T15:46:11+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+526         2026-09-05T15:46:11+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+525         2026-09-05T15:44:01+0800  door        close       info        0                                   logical_state=inactive event_sequence=5321                       
+524         2026-09-05T15:43:26+0800  door        open        alarm       1                                   logical_state=active event_sequence=5285                         
+523         2026-09-05T15:43:18+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+522         2026-09-05T15:43:18+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+521         2026-09-05T15:43:17+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+520         2026-09-05T15:43:17+0800  ai          event       alarm       1                                   ai_alarm=true                                                    
+519         2026-09-05T15:41:21+0800  intrusion   clear       info        0                                   ai_online=true radar_online=true ai_alarm=false radar_alarm=false
+518         2026-09-05T15:41:21+0800  ai          clear       info        0                                   ai_alarm=false                                                   
+517         2026-09-05T15:41:19+0800  intrusion   enter       alarm       1                                   ai_online=true radar_online=true ai_alarm=true radar_alarm=false 
+516         2026-09-05T15:41:19+0800  ai          event       alarm       1                                   ai_alarm=true                                                    

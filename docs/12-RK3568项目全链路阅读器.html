@@ -1,0 +1,1347 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="light">
+  <title>RK3568 项目全链路阅读器</title>
+  <style>
+    :root {
+      --bg: #edf1f2;
+      --surface: #ffffff;
+      --surface-2: #f5f7f7;
+      --text: #172126;
+      --muted: #5c686e;
+      --line: #d5dcde;
+      --line-strong: #aeb9bd;
+      --green: #176b54;
+      --green-soft: #e1f0ea;
+      --blue: #2a6484;
+      --blue-soft: #e3eef4;
+      --amber: #9a6615;
+      --amber-soft: #f7edd9;
+      --red: #9a3f38;
+      --red-soft: #f6e6e3;
+      --purple: #66518c;
+      --purple-soft: #eee9f5;
+      --sidebar: 284px;
+      font-family: "Microsoft YaHei UI", "Microsoft YaHei", system-ui, sans-serif;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+    body { min-width: 320px; }
+    button, input { font: inherit; letter-spacing: 0; }
+    button { color: inherit; }
+    .app { display: grid; grid-template-columns: var(--sidebar) minmax(0, 1fr); min-height: 100vh; }
+    .sidebar { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; min-width: 0; background: #f9faf9; border-right: 1px solid var(--line); }
+    .brand { padding: 18px 16px 14px; border-bottom: 1px solid var(--line); }
+    .brand h1 { margin: 0; font-size: 18px; line-height: 1.4; }
+    .brand p { margin: 6px 0 0; color: var(--muted); font-size: 12px; line-height: 1.6; }
+    .search-wrap { padding: 12px; border-bottom: 1px solid var(--line); }
+    .search { width: 100%; height: 38px; padding: 0 11px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); color: var(--text); outline: none; }
+    .search:focus { border-color: var(--amber); box-shadow: 0 0 0 2px var(--amber-soft); }
+    .nav { flex: 1; overflow: auto; padding: 8px; }
+    .nav button { width: 100%; min-height: 42px; margin: 2px 0; padding: 9px 10px; border: 0; border-left: 3px solid transparent; border-radius: 4px; background: transparent; text-align: left; cursor: pointer; }
+    .nav button:hover { background: #edf1ef; }
+    .nav button.active { border-left-color: var(--green); background: var(--green-soft); color: #124f40; font-weight: 700; }
+    .side-note { padding: 12px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; line-height: 1.6; }
+    .main { min-width: 0; }
+    .topbar { position: sticky; top: 0; z-index: 10; display: flex; align-items: center; justify-content: space-between; gap: 14px; min-height: 68px; padding: 10px 22px; background: rgba(255,255,255,.96); border-bottom: 1px solid var(--line); }
+    .topbar h2 { margin: 0; font-size: 17px; }
+    .topbar p { margin: 4px 0 0; color: var(--muted); font-size: 12px; }
+    .status-key { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+    .badge { display: inline-flex; align-items: center; min-height: 24px; padding: 3px 8px; border: 1px solid; border-radius: 4px; font-size: 11px; font-weight: 700; white-space: nowrap; }
+    .verified { color: var(--green); background: var(--green-soft); border-color: #add3c3; }
+    .source { color: var(--blue); background: var(--blue-soft); border-color: #b6d2df; }
+    .pending { color: var(--amber); background: var(--amber-soft); border-color: #dfc895; }
+    .missing { color: var(--red); background: var(--red-soft); border-color: #ddb5b0; }
+    .content { width: min(1320px, 100%); margin: 0 auto; padding: 22px; }
+    .view { display: none; }
+    .view.active { display: block; }
+    .section-head { display: flex; justify-content: space-between; align-items: end; gap: 16px; margin-bottom: 14px; }
+    .section-head h3 { margin: 0; font-size: 21px; }
+    .section-head p { margin: 5px 0 0; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .band { margin-bottom: 18px; padding: 17px 18px; border: 1px solid var(--line); border-left: 4px solid var(--green); background: var(--surface); }
+    .band h4 { margin: 0 0 8px; font-size: 15px; }
+    .band p { margin: 0; line-height: 1.8; }
+    .architecture { display: grid; gap: 8px; margin-bottom: 18px; }
+    .layer { display: grid; grid-template-columns: 135px minmax(0, 1fr); min-height: 74px; border: 1px solid var(--line); background: var(--surface); }
+    .layer-label { display: grid; place-items: center; padding: 10px; border-right: 1px solid var(--line); background: var(--surface-2); font-weight: 700; font-size: 13px; text-align: center; }
+    .nodes { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 11px; }
+    .node { min-height: 36px; padding: 8px 10px; border: 1px solid var(--line-strong); border-radius: 5px; background: #fff; font-size: 12px; line-height: 1.45; }
+    .node.kernel { border-color: #94b9ce; background: var(--blue-soft); }
+    .node.user { border-color: #9cc8b6; background: var(--green-soft); }
+    .node.data { border-color: #cfb56e; background: var(--amber-soft); }
+    .node.ui { border-color: #b7a7cf; background: var(--purple-soft); }
+    .arrow { color: var(--muted); font-weight: 700; }
+    .chain-strip { display: grid; grid-template-columns: repeat(6, minmax(110px, 1fr)); gap: 8px; margin: 16px 0 20px; }
+    .chain-step { position: relative; min-height: 82px; padding: 12px 10px; border: 1px solid var(--line); border-top: 4px solid var(--blue); background: var(--surface); font-size: 12px; line-height: 1.55; }
+    .chain-step strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+    .module-card { display: flex; flex-direction: column; min-height: 260px; padding: 15px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); cursor: pointer; }
+    .module-card:hover { border-color: var(--line-strong); box-shadow: 0 3px 12px rgba(23,33,38,.07); }
+    .module-card h4 { margin: 8px 0 7px; font-size: 16px; }
+    .module-card p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .module-card .meta { margin-top: auto; padding-top: 12px; color: var(--text); font-size: 11px; }
+    .eyebrow { color: var(--blue); font-size: 11px; font-weight: 700; }
+    .detail { margin-top: 16px; border: 1px solid var(--line); background: var(--surface); }
+    .detail-head { display: flex; justify-content: space-between; gap: 12px; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .detail-head h4 { margin: 0; font-size: 18px; }
+    .detail-body { display: grid; grid-template-columns: 1fr 1fr; gap: 0; }
+    .detail-block { min-width: 0; padding: 16px 18px; border-bottom: 1px solid var(--line); }
+    .detail-block:nth-child(odd) { border-right: 1px solid var(--line); }
+    .detail-block h5 { margin: 0 0 8px; font-size: 13px; }
+    .detail-block ul { margin: 0; padding-left: 19px; }
+    .detail-block li { margin: 5px 0; font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
+    code { padding: 1px 4px; border-radius: 3px; background: #edf0f1; font-family: Consolas, monospace; font-size: .92em; overflow-wrap: anywhere; }
+    table { width: 100%; border-collapse: collapse; background: var(--surface); font-size: 12px; }
+    th, td { padding: 10px 11px; border: 1px solid var(--line); text-align: left; vertical-align: top; line-height: 1.55; overflow-wrap: anywhere; }
+    th { position: sticky; top: 68px; z-index: 2; background: #eef2f2; font-weight: 700; }
+    .table-wrap { overflow: auto; border: 1px solid var(--line); }
+    .table-wrap table { border: 0; }
+    .table-wrap th:first-child, .table-wrap td:first-child { border-left: 0; }
+    .table-wrap th:last-child, .table-wrap td:last-child { border-right: 0; }
+    .scenario-tabs { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 14px; }
+    .scenario-tabs button { min-height: 36px; padding: 7px 11px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); cursor: pointer; }
+    .scenario-tabs button.active { color: #fff; border-color: var(--green); background: var(--green); }
+    .diagram-shell { border: 1px solid var(--line); background: var(--surface); }
+    .diagram-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px; border-bottom: 1px solid var(--line); background: var(--surface-2); }
+    .diagram-toolbar select { min-height: 36px; max-width: 280px; padding: 6px 30px 6px 9px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); color: var(--text); }
+    .tool-group { display: inline-flex; overflow: hidden; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    .tool-group button, .diagram-toolbar > button { min-width: 36px; min-height: 34px; padding: 6px 9px; border: 0; border-right: 1px solid var(--line); background: var(--surface); cursor: pointer; }
+    .tool-group button:last-child { border-right: 0; }
+    .tool-group button.active, .diagram-toolbar > button.active { color: #fff; background: var(--green); }
+    .tool-group button:disabled { color: #9aa3a7; cursor: default; background: #eef1f1; }
+    .toolbar-spacer { flex: 1; }
+    .diagram-stage { display: grid; grid-template-columns: minmax(0, 1fr) 330px; min-height: 600px; }
+    .diagram-stage.expanded { grid-template-columns: minmax(0, 1fr); }
+    .diagram-stage.expanded .diagram-inspector { display: none; }
+    .diagram-viewport { position: relative; min-width: 0; height: 650px; overflow: hidden; background-color: #f8faf9; background-image: linear-gradient(#e8eded 1px, transparent 1px), linear-gradient(90deg, #e8eded 1px, transparent 1px); background-size: 24px 24px; touch-action: none; cursor: grab; }
+    .diagram-viewport.dragging { cursor: grabbing; }
+    .diagram-svg { display: block; width: 100%; height: 100%; user-select: none; }
+    .diagram-node { cursor: pointer; }
+    .diagram-node rect { fill: #fff; stroke: #809095; stroke-width: 1.5; rx: 5; vector-effect: non-scaling-stroke; }
+    .diagram-node.kernel rect { fill: var(--blue-soft); stroke: #5e91ad; }
+    .diagram-node.user rect { fill: var(--green-soft); stroke: #659f88; }
+    .diagram-node.data rect { fill: var(--amber-soft); stroke: #b38b3d; }
+    .diagram-node.ui rect { fill: var(--purple-soft); stroke: #8f7aaf; }
+    .diagram-node.hardware rect { fill: #f3f4f4; stroke: #7f8b8f; }
+    .diagram-node.output rect { fill: var(--red-soft); stroke: #b76760; }
+    .diagram-node text { fill: var(--text); text-anchor: middle; pointer-events: none; }
+    .diagram-node .node-title { font-size: 13px; font-weight: 700; }
+    .diagram-node .node-sub { fill: #526168; font-size: 10px; }
+    .diagram-edge { cursor: pointer; }
+    .diagram-edge .edge-line { fill: none; stroke: #738388; stroke-width: 1.8; marker-end: url(#arrow-main); vector-effect: non-scaling-stroke; }
+    .diagram-edge.hardware .edge-line { stroke: var(--red); marker-end: url(#arrow-red); }
+    .diagram-edge.media .edge-line { stroke: var(--blue); marker-end: url(#arrow-blue); }
+    .diagram-edge.data .edge-line { stroke: var(--green); marker-end: url(#arrow-green); }
+    .diagram-edge.async .edge-line { stroke-dasharray: 7 5; }
+    .diagram-edge .edge-hit { fill: none; stroke: transparent; stroke-width: 16; vector-effect: non-scaling-stroke; }
+    .diagram-edge .edge-label-bg { fill: #fff; stroke: #bfc9cc; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .diagram-edge .edge-label { fill: #26363c; font-size: 11px; font-weight: 600; text-anchor: middle; pointer-events: none; }
+    .diagram-edge:hover .edge-label-bg, .diagram-edge.selected .edge-label-bg { fill: #fff7e7; stroke: #c08016; stroke-width: 2; }
+    .diagram-node.dimmed, .diagram-edge.dimmed { opacity: .13; }
+    .diagram-edge.filtered { display: none; }
+    .diagram-node.related rect, .diagram-node.selected rect { stroke: #c08016; stroke-width: 3; }
+    .diagram-edge.related .edge-line, .diagram-edge.selected .edge-line { stroke: #c08016; stroke-width: 3.5; marker-end: url(#arrow-focus); }
+    .diagram-node.trace-done rect { stroke: var(--green); stroke-width: 2.5; }
+    .diagram-edge.trace-done .edge-line { stroke: var(--green); stroke-width: 3; marker-end: url(#arrow-green); }
+    .diagram-node.search-hit rect { stroke: #c08016; stroke-width: 4; }
+    .sequence-actor rect { fill: #fff; stroke: #76878c; stroke-width: 1.5; rx: 5; vector-effect: non-scaling-stroke; }
+    .sequence-actor text { fill: var(--text); font-size: 12px; font-weight: 700; text-anchor: middle; }
+    .sequence-life { stroke: #aeb9bd; stroke-width: 1.2; stroke-dasharray: 5 5; vector-effect: non-scaling-stroke; }
+    .sequence-message { cursor: pointer; }
+    .sequence-message line, .sequence-message path { fill: none; stroke: #476873; stroke-width: 1.8; marker-end: url(#arrow-main); vector-effect: non-scaling-stroke; }
+    .sequence-message.async line, .sequence-message.async path { stroke-dasharray: 7 5; }
+    .sequence-message text { fill: #26363c; font-size: 11px; text-anchor: middle; pointer-events: none; }
+    .sequence-message .sequence-label-bg { fill: #fff; stroke: #c9d1d3; stroke-width: 1; vector-effect: non-scaling-stroke; }
+    .sequence-message:hover .sequence-label-bg, .sequence-message.selected .sequence-label-bg { fill: #fff7e7; stroke: #c08016; stroke-width: 2; }
+    .sequence-message .step-circle { fill: var(--green); stroke: none; }
+    .sequence-message .step-number { fill: #fff; font-size: 9px; font-weight: 700; }
+    .sequence-message.dimmed { opacity: .14; }
+    .sequence-message.selected line, .sequence-message.selected path, .sequence-message.trace-done line, .sequence-message.trace-done path { stroke: #c08016; stroke-width: 3.2; marker-end: url(#arrow-focus); }
+    .diagram-inspector { min-width: 0; padding: 16px; border-left: 1px solid var(--line); background: #fff; overflow: auto; }
+    .diagram-inspector h4 { margin: 0 0 6px; font-size: 16px; }
+    .diagram-inspector h5 { margin: 15px 0 6px; font-size: 12px; }
+    .diagram-inspector p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; overflow-wrap: anywhere; }
+    .inspector-list { display: grid; gap: 7px; margin-top: 10px; }
+    .inspector-row { padding: 8px 9px; border-left: 3px solid var(--line-strong); background: var(--surface-2); font-size: 11px; line-height: 1.55; overflow-wrap: anywhere; }
+    .inspector-row strong { display: block; margin-bottom: 2px; color: var(--text); }
+    .diagram-caption { padding: 12px 14px; border-top: 1px solid var(--line); color: var(--muted); font-size: 12px; line-height: 1.7; }
+    .diagram-legend { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 10px; color: var(--muted); font-size: 11px; }
+    .legend-line { display: inline-block; width: 28px; margin-right: 5px; border-top: 2px solid #738388; vertical-align: middle; }
+    .legend-line.async { border-top-style: dashed; }
+    .legend-line.alarm { border-color: var(--red); }
+    .legend-line.media { border-color: var(--blue); }
+    .legend-line.data { border-color: var(--green); }
+    .timeline { counter-reset: step; border-left: 2px solid #a9c6ba; margin-left: 16px; padding-left: 24px; }
+    .timeline-item { position: relative; margin-bottom: 11px; padding: 12px 14px; border: 1px solid var(--line); background: var(--surface); }
+    .timeline-item::before { counter-increment: step; content: counter(step); position: absolute; left: -38px; top: 11px; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; color: #fff; background: var(--green); font-size: 11px; font-weight: 700; }
+    .timeline-item strong { display: block; margin-bottom: 4px; font-size: 13px; }
+    .timeline-item p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .call-chain { margin-top: 16px; padding: 14px; border: 1px solid var(--line); background: #182328; color: #ecf3f1; font: 12px/1.8 Consolas, monospace; white-space: pre-wrap; overflow-wrap: anywhere; }
+    .evidence-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+    .evidence-row { padding: 14px; border: 1px solid var(--line); background: var(--surface); }
+    .evidence-row h4 { margin: 0 0 7px; font-size: 14px; }
+    .evidence-row p { margin: 0; color: var(--muted); font-size: 12px; line-height: 1.65; }
+    .review-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .review-block { padding: 16px; border: 1px solid var(--line); background: var(--surface); }
+    .review-block h4 { margin: 0 0 10px; }
+    .review-block ol, .review-block ul { margin: 0; padding-left: 20px; }
+    .review-block li { margin: 7px 0; line-height: 1.55; font-size: 12px; }
+    .empty { padding: 30px; border: 1px dashed var(--line-strong); color: var(--muted); background: var(--surface); text-align: center; }
+    .mobile-nav { display: none; width: 100%; height: 40px; border: 1px solid var(--line); border-radius: 5px; background: var(--surface); }
+    @media (max-width: 1000px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .chain-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    }
+    @media (max-width: 760px) {
+      .app { display: block; }
+      .sidebar { position: static; width: 100%; height: auto; border-right: 0; border-bottom: 1px solid var(--line); }
+      .brand { padding: 13px 14px; }
+      .search-wrap, .nav, .side-note { display: none; }
+      .topbar { position: static; display: block; padding: 10px 13px; }
+      .status-key { justify-content: flex-start; margin-top: 9px; }
+      .mobile-nav { display: block; margin-top: 10px; }
+      .content { padding: 14px; }
+      .grid, .evidence-grid, .review-grid, .detail-body { grid-template-columns: 1fr; }
+      .detail-block:nth-child(odd) { border-right: 0; }
+      .layer { grid-template-columns: 1fr; }
+      .layer-label { border-right: 0; border-bottom: 1px solid var(--line); }
+      .chain-strip { grid-template-columns: 1fr; }
+      .diagram-stage { grid-template-columns: 1fr; }
+      .diagram-stage.expanded { grid-template-columns: 1fr; }
+      .diagram-viewport { height: 520px; }
+      .diagram-inspector { border-left: 0; border-top: 1px solid var(--line); }
+      .diagram-toolbar select { max-width: 100%; flex: 1 1 180px; }
+      .toolbar-spacer { display: none; }
+      th { position: static; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="brand">
+        <h1>RK3568 全链路阅读器</h1>
+        <p>源码、接口、时序、联动与证据边界</p>
+      </div>
+      <div class="search-wrap">
+        <input id="search" class="search" type="search" placeholder="搜索文件、函数、接口或模块">
+      </div>
+      <nav id="nav" class="nav" aria-label="主导航"></nav>
+      <div class="side-note">事实基线：2026-08-29 当前项目源码<br>最终 HMI：顶层 userspace/hmi_qml</div>
+    </aside>
+
+    <main class="main">
+      <header class="topbar">
+        <div>
+          <h2 id="view-title">项目总览</h2>
+          <p id="view-subtitle">从硬件触发一直追到本地告警、SQLite、MQTT 与 QML</p>
+          <select id="mobile-nav" class="mobile-nav" aria-label="移动端主导航"></select>
+        </div>
+        <div class="status-key" aria-label="证据等级">
+          <span class="badge verified">已验证</span>
+          <span class="badge source">源码可证</span>
+          <span class="badge pending">待复验</span>
+          <span class="badge missing">未实现</span>
+        </div>
+      </header>
+
+      <div class="content">
+        <section id="overview" class="view active"></section>
+        <section id="diagrams" class="view"></section>
+        <section id="modules" class="view"></section>
+        <section id="interfaces" class="view"></section>
+        <section id="sequences" class="view"></section>
+        <section id="evidence" class="view"></section>
+        <section id="review" class="view"></section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    "use strict";
+
+    const views = [
+      ["overview", "项目总览", "六层架构和三条主线"],
+      ["diagrams", "全链路图", "点节点看上下游，点连线看接口，切时序看执行先后"],
+      ["modules", "模块与源码", "按职责查看文件、函数和边界"],
+      ["interfaces", "接口地图", "跨内核、进程和持久化边界"],
+      ["sequences", "执行时序", "从触发源追到最终现象"],
+      ["evidence", "证据边界", "已验证、源码可证和待复验"],
+      ["review", "快速复习", "记忆卡、问题和项目口述"]
+    ];
+
+    const modules = [
+      {
+        id: "bsp", group: "01", title: "BSP 与启动部署", status: "verified", statusText: "已验证",
+        summary: "TFTP 加载 Image/DTB，Linux 挂载 Buildroot NFS rootfs，并保留 eMMC 回退。",
+        ownership: "负责构建、版本一致性、部署和启动证据；不负责业务采集规则。",
+        files: ["dts_patches/rk3568-safety-terminal.dts", "dts_patches/rk3568-safety-terminal.dtsi", "scripts/sync_project_dts_to_sdk.sh", "scripts/build_project_dtb.sh"],
+        functions: ["Kbuild: rockchip/rk3568-safety-terminal.dtb", "U-Boot: tftpboot / booti", "Linux: of_platform populate"],
+        inputs: ["项目 DTS/DTSI", "SDK kernel tree", "Buildroot 工具链"],
+        outputs: ["Image", "DTB", "ARM64 .ko / ELF", "运行内核与 NFS 根"],
+        boundary: "项目基于现有 Rockchip BSP；没有从零实现 BootROM、U-Boot 或 Linux。",
+        document: "02-Linux启动与构建部署.md"
+      },
+      {
+        id: "driver", group: "02", title: "设备树与 safety_event 驱动", status: "verified", statusText: "已验证",
+        summary: "绑定门磁、告警 LED、PWM15 和 BH1750，提供事件字符设备与用户告警 ioctl。",
+        ownership: "驱动独占 GPIO/PWM 与 BH1750 client；不处理雷达协议、AI 或数据库。",
+        files: ["drivers/safety_event/safety_event.c", "drivers/safety_event/safety_event_uapi.h", "dts_patches/rk3568-safety-terminal.dtsi"],
+        functions: ["safety_event_probe()", "safety_event_door_irq_thread()", "safety_event_bh1750_work()", "safety_event_publish()", "safety_event_poll()", "safety_event_read()", "safety_event_ioctl()", "safety_event_apply_alarm_locked()"],
+        inputs: ["GPIO3_A1 门磁", "I2C3 BH1750 0x23", "SET_USER_ALARM ioctl"],
+        outputs: ["/dev/safety_event", "GPIO3_C1 LED", "PWM15 蜂鸣器"],
+        boundary: "事件缓存是单槽且 consumed_sequence 全局共享，不是无损队列或 reader 广播。",
+        document: "04-safety_event字符设备驱动.md / 05-中断并发与用户态接口.md"
+      },
+      {
+        id: "alarmd", group: "03", title: "传感器、雷达与告警守护", status: "verified", statusText: "已验证",
+        summary: "poll 字符设备、UART9 和控制 socket，每秒采样 SHT3x，并合并雷达与 AI 用户告警。",
+        ownership: "负责用户态多输入协调与 snapshot 响应；不直接操作 GPIO/PWM。",
+        files: ["userspace/safety_alarmd/safety_alarmd.c", "userspace/safety_alarmd/ai_alarm_bridge.c", "userspace/safety_alarmd/safety_alarmctl.c", "userspace/safety_alarmd/S90safety_alarmd"],
+        functions: ["run_event_loop()", "handle_event()", "process_ld2410b_frames()", "update_rear_monitor()", "apply_user_alarm()", "handle_control_clients()", "format_snapshot_response()", "sample_sht3x()"],
+        inputs: ["/dev/safety_event", "/dev/ttyS9", "SHT3x hwmon", "/run/safety_alarmd.sock"],
+        outputs: ["SET_USER_ALARM ioctl", "snapshot JSON", "syslog"],
+        boundary: "雷达监测默认 disabled；AI stdout 到 bridge 的管道需要部署层建立。",
+        document: "06-GPIO_PWM_I2C与传感器.md"
+      },
+      {
+        id: "ai", group: "04", title: "USB 摄像头、RGA 与 RKNN", status: "verified", statusText: "主链已验证",
+        summary: "采集 1280x720 最新帧，RGA 缩放后进行 RKNN 推理，以 person 框底部中心点判断 ROI。",
+        ownership: "负责视觉检测、事件文本、JPEG/H.264 预览；不直接调用告警驱动。",
+        files: ["userspace/ai_yolov5/src/main.cc", "userspace/ai_yolov5/src/postprocess.cc", "userspace/ai_yolov5/config/danger_roi.conf", "userspace/ai_yolov5/CMakeLists.txt"],
+        functions: ["CaptureWorker", "LatestOverlay", "EncoderWorker", "H264AccessUnitPublisher", "load_danger_roi()", "post_process()", "publish_preview_frame()", "publish_ai_runtime_state()"],
+        inputs: ["USB UVC /dev/video*", "RKNN 模型", "归一化 ROI"],
+        outputs: ["INTRUSION_EVENT/CLEAR", "ai_runtime.json", "latest.jpg", "h264.sock"],
+        boundary: "固定 ROI person 检测不是通用行为识别；QML H.264 当前版本仍需板端专项复验。",
+        document: "07-USB摄像头_V4L2与RKNN.md"
+      },
+      {
+        id: "data", group: "05", title: "状态、SQLite 与 MQTT", status: "source", statusText: "部分待复验",
+        summary: "合并安全与 AI 状态，从统一快照生成事件，并把状态和新事件发布到 MQTT。",
+        ownership: "state_snapshotd 发布当前状态；sqlite_eventd 保存边沿；mqtt_reporterd 只读上报。",
+        files: ["userspace/state_snapshotd/state_snapshotd.c", "userspace/sqlite_eventd/sqlite_eventd.c", "userspace/mqtt_reporterd/mqtt_reporterd.c", "userspace/mqtt_reporterd/S95mqtt_reporterd"],
+        functions: ["request_snapshot()", "write_atomic()", "process_snapshot()", "database_insert_event()", "publish_status()", "publish_events()", "save_cursor()"],
+        inputs: ["ai_runtime.json", "safety_alarmd snapshot", "system_state.json", "industrial_safety.db"],
+        outputs: ["system_state.json", "events 表", "MQTT availability/status/event"],
+        boundary: "sqlite_eventd 不读 /dev/safety_event；S92 的 restart 函数缺失；S94 的 temperature/lux-high 环境变量未被 C 程序读取；MQTT QoS 1 + 游标仍允许重复上报。",
+        document: "08-告警规则_SQLite与MQTT.md"
+      },
+      {
+        id: "hmi", group: "06", title: "Qt/QML HMI 与 systemui", status: "source", statusText: "页面已验证，视频待复验",
+        summary: "QML 多页面显示统一状态、SQLite 历史和 H.264 预览，并从 factory systemui 入口启动。",
+        ownership: "QML 负责展示；C++ 负责 JSON、SQLite、H.264 和窗口绑定；HMI 不是告警权威。",
+        files: ["userspace/hmi_qml/src/main.cpp", "runtime_model.cpp", "history_model.cpp", "h264_video_bridge.cpp", "qml/Main.qml", "deploy/industrial_safety"],
+        functions: ["RuntimeModel::refresh()", "HistoryModel::reload()", "H264VideoBridge::poll()", "setActive()", "setRenderRect()", "QQmlContext::setContextProperty()"],
+        inputs: ["system_state.json", "industrial_safety.db", "h264.sock", "Wayland window handle"],
+        outputs: ["实时监控", "告警中心", "环境监测", "历史记录", "系统诊断"],
+        boundary: "当前 stale、活动告警、无效值和 GUI 线程查询存在缺口；没有服务重启/告警确认接口。",
+        document: "09-Qt_QML_HMI与系统服务.md"
+      }
+    ];
+
+    const interfaces = [
+      ["项目 DTB", "项目 DTS + SDK Kbuild", "Linux 内核", "板级资源描述", "产物仍需证明已部署/加载"],
+      ["/dev/safety_event", "safety_event.ko", "safety_alarmd / 测试程序", "event record + poll/read/ioctl", "单槽、全局消费序号"],
+      ["UAPI v5", "safety_event_uapi.h", "模块与用户程序", "结构体和 ioctl 编号", "两端必须同版本重编"],
+      ["/dev/ttyS9", "Linux UART/TTY", "safety_alarmd", "LD2410B 字节帧", "项目没有专用内核协议驱动"],
+      ["SHT3x hwmon", "Linux sht3x", "safety_alarmd", "temp1_input / humidity1_input", "路径需运行时发现"],
+      ["/run/safety_alarmd.sock", "safety_alarmd", "ctl / bridge / snapshotd", "SOCK_STREAM 文本命令", "本地控制面"],
+      ["AI stdout", "rk3568_yolov5_demo", "ai_alarm_bridge", "INTRUSION_EVENT/CLEAR", "需要部署命令建立管道"],
+      ["ai_runtime.json", "AI 主程序", "state_snapshotd", "AI 状态和性能快照", "5 s 健康超时"],
+      ["system_state.json", "state_snapshotd", "SQLite / MQTT / HMI", "统一当前状态", "不是事件队列"],
+      ["industrial_safety.db", "sqlite_eventd", "MQTT / HistoryModel", "不可变边沿事件", "active=1 不等于当前未恢复"],
+      ["MQTT topics", "mqtt_reporterd", "MQTT Broker", "availability/status/event", "QoS 1 不等于业务消费确认"],
+      ["h264.sock", "H264AccessUnitPublisher", "H264VideoBridge", "SOCK_SEQPACKET H.264", "单客户端、无视频队列"],
+      ["QML context", "main.cpp", "Main.qml", "runtime/video/history/activeHistory", "QML 不直接打开系统接口"]
+    ];
+
+    const scenarios = [
+      {
+        id: "boot", title: "系统启动", chain: "BootROM -> Loader -> U-Boot -> TFTP Image/DTB -> Linux -> NFS rootfs -> SysV init -> services -> systemui/HMI",
+        steps: [
+          ["BootROM 与 Loader", "加载前级程序并完成 DDR 初始化。"],
+          ["U-Boot", "读取环境，优先从 Ubuntu TFTP 下载项目 Image 和 DTB。"],
+          ["Linux", "booti 接收内核与 DTB，初始化设备并按 bootargs 挂载 NFS rootfs。"],
+          ["SysV 服务", "S90 保证驱动设备并监督 safety_alarmd；S92、S94、S95按脚本启动。"],
+          ["显示入口", "factory systemui 提供工业安全监控入口；QML HMI 被点击后才前台运行。"],
+          ["失败边界", "网络启动失败可回退 eMMC；脚本编号不证明服务安装和运行成功。"]
+        ]
+      },
+      {
+        id: "door", title: "门磁告警", chain: "GPIO edge -> safety_event_door_irq_thread -> apply_alarm -> publish -> poll/read -> snapshot -> SQLite/HMI/MQTT",
+        steps: [
+          ["硬件触发", "门磁分离后上拉形成逻辑 active，触发 GPIO 双边沿 IRQ。"],
+          ["threaded IRQ", "读取 GPIO，并经过 50 ms 去抖门。"],
+          ["驱动输出", "更新 door_alarm，与 low_lux/user_alarm OR 后驱动 LED/PWM。"],
+          ["发布事件", "safety_event_publish 写单槽记录并唤醒 wait queue。"],
+          ["用户态读取", "safety_alarmd 的 poll 返回，read 取得 safety_event_record。"],
+          ["数据链", "snapshotd 发布 door 状态；sqlite_eventd 识别边沿；HMI 和 MQTT 后续消费。"]
+        ]
+      },
+      {
+        id: "lux", title: "低照度告警", chain: "BH1750 -> delayed_work -> raw/1.2 -> 30/50 lux hysteresis -> driver alarm -> snapshot/data consumers",
+        steps: [
+          ["周期采样", "BH1750 delayed work 每 1000 ms 读取 2 字节。"],
+          ["单位换算", "按默认 MTreg=69 的 H-resolution 规则计算 lux=raw/1.2。"],
+          ["迟滞判断", "<=30 lux 触发 low_lux_alarm，>=50 lux 恢复。"],
+          ["本地执行", "驱动内部立即重新计算三路 OR，控制 LED 和 PWM。"],
+          ["事件发布", "阈值穿越发布 LOW_LUX/LUX_RECOVER，正常样本发布 BH1750_SAMPLE。"],
+          ["上层消费", "safety_alarmd 保存最新 lux，随后进入统一快照、SQLite、HMI 和 MQTT。"]
+        ]
+      },
+      {
+        id: "radar", title: "雷达近距离", chain: "LD2410B -> /dev/ttyS9 -> parse frames -> 2 s near hold -> radar alarm -> ioctl -> driver output",
+        steps: [
+          ["串口输入", "LD2410B 数据由 Linux UART/TTY 形成 /dev/ttyS9。"],
+          ["帧解析", "safety_alarmd 读取并校验数据帧，更新距离、能量和新鲜度。"],
+          ["启用门", "雷达监测默认 disabled，必须先通过控制命令启用。"],
+          ["触发规则", "目标在 200 cm 内持续 2 s 后置位 radar user alarm。"],
+          ["清除规则", "无人或超距持续 5 s 后释放 radar user alarm。"],
+          ["两级合并", "safety_alarmd 合并 radar OR ai，再由驱动合并 door OR low_lux OR user。"]
+        ]
+      },
+      {
+        id: "ai", title: "AI 危险区", chain: "UVC -> CaptureWorker -> BGR/RGB -> RGA -> RKNN -> post_process -> person foot point in ROI -> stdout -> bridge -> ioctl",
+        steps: [
+          ["最新帧采集", "CaptureWorker 是唯一摄像头打开者，为推理和编码分别保留最新帧。"],
+          ["预处理", "BGR 转 RGB；尺寸不匹配时用 RGA imresize。"],
+          ["NPU 推理", "rknn_inputs_set、rknn_run、rknn_outputs_get。"],
+          ["后处理", "反量化、置信度筛选、排序、NMS 和坐标恢复。"],
+          ["ROI 状态机", "person 框底部中心点进入 ROI 触发；连续 3 次未命中后清除。"],
+          ["告警桥接", "stdout 经外部管道进入 ai_alarm_bridge，再通过 Unix socket 和 ioctl 控制用户告警。"]
+        ]
+      },
+      {
+        id: "data", title: "状态到 HMI/MQTT", chain: "safety snapshot + ai_runtime -> state_snapshotd -> system_state.json -> SQLite/MQTT/RuntimeModel -> QML",
+        steps: [
+          ["取得安全快照", "state_snapshotd 向 /run/safety_alarmd.sock 发送 snapshot。"],
+          ["读取 AI 快照", "检查 ai_runtime.json 的 monotonic_ms，超过 5 s 视为离线。"],
+          ["原子发布", "写临时文件、fflush、fsync，再 rename 为 system_state.json。"],
+          ["生成历史", "sqlite_eventd 每秒读取快照，比较 tracker 和阈值，边沿变化时事务 INSERT。"],
+          ["远程上报", "mqtt_reporterd 每 5 s 发布 retained status，并按 event_id 游标发布新事件。"],
+          ["本地显示", "RuntimeModel 每 500 ms 读取状态，HistoryModel 每秒查询 SQLite，QML 属性绑定刷新。"]
+        ]
+      },
+      {
+        id: "video", title: "H.264 预览", chain: "CaptureWorker -> EncoderWorker/MPP -> H264AccessUnitPublisher -> SOCK_SEQPACKET -> H264VideoBridge -> GStreamer -> waylandsink",
+        steps: [
+          ["编码输入", "EncoderWorker 取得最新编码帧，并读取 LatestOverlay 快照。"],
+          ["MPP 编码", "生成 Annex-B H.264，识别 SPS/PPS 和 IDR。"],
+          ["本地发布", "H264AccessUnitPublisher 以单客户端、非阻塞方式发送包。"],
+          ["QML 激活", "进入监控页后 setActive(true)，并提交渲染矩形。"],
+          ["解码显示", "appsrc -> h264parse -> mppvideodec -> waylandsink。"],
+          ["证据边界", "当前源码和构建可证；顶层 QML 版本实际出图及重连仍需板端复验。"]
+        ]
+      }
+    ];
+
+    const dn = (id, label, x, y, kind, role, fn, source, module = "", drill = "") => ({id, label, x, y, kind, role, fn, source, module, drill, w: 184, h: 72});
+    const de = (id, from, to, label, type, data, trigger, mode, source, evidence = "源码可证") => ({id, from, to, label, type, data, trigger, mode, source, evidence});
+    const sm = (from, to, label, detail, source, type = "sync", evidence = "源码可证") => ({from, to, label, detail, source, type, evidence});
+
+    const diagramScenes = [
+      {
+        id: "whole", title: "项目全景联动", summary: "从板级资源、实时输入和 AI 一直追到声光告警、统一状态、历史、远程上报与 HMI。",
+        conclusion: "项目不是单一进程：内核字符设备、stdout 管道、Unix socket、JSON、SQLite、MQTT 和 H.264 socket 共同构成跨边界联动。",
+        nodes: [
+          dn("inputs", "门磁 / 光照 / 温湿度 / 雷达", 35, 65, "hardware", "物理输入与环境量", "GPIO / I2C / hwmon / TTY", "rk3568-safety-terminal.dtsi"),
+          dn("dts", "项目 DTS / DTSI", 275, 65, "kernel", "描述 GPIO、PWM、I2C 与引脚复用", "compatible / pinctrl", "dts_patches/rk3568-safety-terminal.dts(i)", "bsp", "driver"),
+          dn("driver", "safety_event.ko", 515, 65, "kernel", "门磁、BH1750 与声光执行器所有者", "probe / IRQ / work / poll / read / ioctl", "drivers/safety_event/safety_event.c", "driver", "driver"),
+          dn("alarmd", "safety_alarmd", 755, 65, "user", "汇总字符设备、SHT3x、雷达和 AI 告警", "run_event_loop / apply_user_alarm", "userspace/safety_alarmd/safety_alarmd.c", "alarmd", "alarm"),
+          dn("camera", "USB UVC 摄像头", 35, 235, "hardware", "视频输入", "V4L2 /dev/video*", "userspace/ai_yolov5/src/main.cc"),
+          dn("ai", "RKNN + ROI 推理", 275, 235, "user", "人员危险区检测与预览编码", "CaptureWorker / post_process", "userspace/ai_yolov5/src/main.cc", "ai", "ai"),
+          dn("bridge", "ai_alarm_bridge", 515, 235, "user", "把 AI 文本事件转换为控制命令", "stdin / send_command", "userspace/safety_alarmd/ai_alarm_bridge.c", "alarmd", "alarm"),
+          dn("snapshot", "state_snapshotd", 755, 235, "data", "合并安全快照与 AI 运行状态", "request_snapshot / write_atomic", "userspace/state_snapshotd/state_snapshotd.c", "data", "data"),
+          dn("state", "system_state.json", 995, 235, "data", "统一当前状态，不是事件队列", "atomic rename", "userspace/state_snapshotd/state_snapshotd.c", "data", "data"),
+          dn("sqlite", "sqlite_eventd / SQLite", 995, 405, "data", "按状态边沿写不可变历史事件", "process_snapshot / database_insert_event", "userspace/sqlite_eventd/sqlite_eventd.c", "data", "data"),
+          dn("mqtt", "mqtt_reporterd", 1235, 320, "data", "发布 availability、status 和 event", "publish_status / publish_events", "userspace/mqtt_reporterd/mqtt_reporterd.c", "data", "data"),
+          dn("hmi", "Qt / QML HMI", 1235, 500, "ui", "显示实时状态、历史与视频", "RuntimeModel / HistoryModel / H264VideoBridge", "userspace/hmi_qml", "hmi", "hmi"),
+          dn("video", "H.264 socket + GStreamer", 755, 500, "ui", "单客户端视频传输与硬解显示", "SOCK_SEQPACKET / mppvideodec", "userspace/hmi_qml/src/h264_video_bridge.cpp", "hmi", "hmi"),
+          dn("alarm", "LED + PWM 蜂鸣器", 515, 500, "output", "本地声光输出", "gpiod_set_value / pwm_apply_state", "drivers/safety_event/safety_event.c", "driver", "driver"),
+          dn("systemui", "factory systemui", 995, 590, "ui", "HMI 应用入口与退出恢复", "deploy/industrial_safety", "userspace/hmi_qml/deploy/industrial_safety", "hmi", "hmi")
+        ],
+        edges: [
+          de("w1", "inputs", "dts", "板级资源描述", "boot", "GPIO/I2C/PWM/TTY 资源", "内核启动解析 DTB", "配置依赖，不是运行时函数调用", "dts_patches/rk3568-safety-terminal.dtsi"),
+          de("w2", "dts", "driver", "compatible → probe", "boot", "platform resources", "of_match 成功", "内核 platform 绑定", "drivers/safety_event/safety_event.c"),
+          de("w3", "driver", "alarmd", "poll() / read()", "async", "safety_event_record", "publish 后唤醒等待进程", "字符设备异步事件", "safety_event.c + safety_alarmd.c", "已验证"),
+          de("w4", "alarmd", "driver", "SET_USER_ALARM ioctl", "hardware", "radar OR ai", "用户告警状态变化", "同步系统调用", "safety_alarmd.c + safety_event_uapi.h", "已验证"),
+          de("w5", "driver", "alarm", "三路 OR 后执行", "hardware", "door OR low_lux OR user", "任一告警源变化", "驱动直接控制 GPIO/PWM", "safety_event_apply_alarm_locked()", "已验证"),
+          de("w6", "camera", "ai", "V4L2 帧", "media", "1280x720 最新帧", "采集线程 dequeues frame", "V4L2 + 进程内线程", "userspace/ai_yolov5/src/main.cc", "已验证"),
+          de("w7", "ai", "bridge", "stdout 文本管道", "async", "INTRUSION_EVENT / CLEAR", "ROI 状态改变", "部署层管道，不是函数调用", "main.cc + ai_alarm_bridge.c"),
+          de("w8", "bridge", "alarmd", "Unix 控制 socket", "ipc", "AI_ALARM 1/0 文本命令", "stdin 收到 AI 事件", "SOCK_STREAM", "ai_alarm_bridge.c + safety_alarmd.c"),
+          de("w9", "alarmd", "snapshot", "snapshot 命令", "ipc", "门磁、lux、雷达、告警状态", "state_snapshotd 周期请求", "Unix SOCK_STREAM", "state_snapshotd.c + safety_alarmd.c"),
+          de("w10", "ai", "snapshot", "ai_runtime.json", "data", "在线、入侵、帧率与时间戳", "AI 周期原子发布", "文件数据边界", "main.cc + state_snapshotd.c"),
+          de("w11", "snapshot", "state", "write + fsync + rename", "data", "统一 JSON 快照", "安全与 AI 状态合并完成", "原子文件发布", "state_snapshotd.c", "已验证"),
+          de("w12", "state", "sqlite", "每秒读取并比较边沿", "data", "当前状态字段", "定时轮询", "文件读取 + SQLite 事务", "sqlite_eventd.c", "已验证"),
+          de("w13", "state", "mqtt", "retained status", "data", "统一当前状态", "5 s 发布周期", "MQTT QoS 1", "mqtt_reporterd.c"),
+          de("w14", "sqlite", "mqtt", "event_id 游标读取", "data", "新增事件行", "数据库出现更大 event_id", "SQLite 查询 + MQTT QoS 1", "mqtt_reporterd.c"),
+          de("w15", "state", "hmi", "500 ms refresh", "data", "实时属性", "RuntimeModel 定时器", "JSON 文件读取", "runtime_model.cpp", "已验证"),
+          de("w16", "sqlite", "hmi", "1 s reload", "data", "历史事件列表", "HistoryModel 定时器", "SQLite 查询", "history_model.cpp", "已验证"),
+          de("w17", "ai", "video", "h264.sock", "media", "Annex-B H.264 access unit", "编码线程产生数据", "Unix SOCK_SEQPACKET", "main.cc + h264_video_bridge.cpp", "待复验"),
+          de("w18", "video", "hmi", "GStreamer → waylandsink", "media", "解码视频帧", "监控页 setActive(true)", "appsrc/h264parse/mppvideodec", "h264_video_bridge.cpp", "待复验"),
+          de("w19", "systemui", "hmi", "应用入口启动", "boot", "前台 HMI 进程", "用户点击工业安全入口", "shell 启动并在退出后恢复 systemui", "deploy/industrial_safety", "已验证")
+        ],
+        sequence: {
+          actors: [["sensor","传感器"],["driver","safety_event"],["alarmd","safety_alarmd"],["snapshot","snapshotd"],["data","SQLite/MQTT"],["hmi","QML HMI"]],
+          messages: [
+            sm("sensor","driver","GPIO/I2C 状态变化","IRQ 或 delayed_work 更新驱动状态。","safety_event.c","async","已验证"),
+            sm("driver","alarmd","wake → poll/read","事件记录写入单槽后唤醒等待进程。","safety_event_publish()/poll()/read()","async","已验证"),
+            sm("alarmd","driver","SET_USER_ALARM ioctl","雷达与 AI 的 OR 结果写回驱动。","apply_user_alarm() + safety_event_ioctl()","sync","已验证"),
+            sm("snapshot","alarmd","snapshot","周期请求当前安全状态。","request_snapshot()/format_snapshot_response()"),
+            sm("alarmd","snapshot","JSON reply","通过控制 socket 返回快照文本。","safety_alarmd.c + state_snapshotd.c"),
+            sm("snapshot","data","system_state.json / events","原子发布状态，SQLite/MQTT 后续轮询消费。","state_snapshotd.c + sqlite_eventd.c + mqtt_reporterd.c","async"),
+            sm("data","hmi","JSON + SQLite refresh","RuntimeModel 与 HistoryModel 定时刷新。","runtime_model.cpp + history_model.cpp","async","已验证")
+          ]
+        }
+      },
+      {
+        id: "driver", title: "驱动事件与用户态边界", summary: "DTS 匹配、异步事件发布、poll/read 消费和 ioctl 控制的完整因果链。",
+        conclusion: "事件记录保存数据，wait queue 保存等待进程；wake_up_interruptible() 只负责唤醒，不传递事件字段。当前事件缓存是单槽并共享消费序号。",
+        nodes: [
+          dn("dt", "DTB 节点", 40, 70, "kernel", "资源描述", "compatible / gpios / pwms / i2c", "dts_patches/rk3568-safety-terminal.dtsi"),
+          dn("probe", "safety_event_probe()", 285, 70, "kernel", "申请资源并注册字符设备", "devm_* / misc_register", "drivers/safety_event/safety_event.c", "driver"),
+          dn("irq", "door_irq_thread()", 530, 70, "kernel", "门磁双边沿与 50 ms 去抖", "gpiod_get_value_cansleep", "drivers/safety_event/safety_event.c", "driver"),
+          dn("work", "bh1750_work()", 530, 245, "kernel", "周期采样与 30/50 lux 迟滞", "i2c_master_recv / delayed_work", "drivers/safety_event/safety_event.c", "driver"),
+          dn("publish", "safety_event_publish()", 775, 155, "kernel", "更新单槽事件并唤醒等待者", "spin_lock + wake_up_interruptible", "drivers/safety_event/safety_event.c", "driver"),
+          dn("poll", "poll() / read()", 1020, 70, "user", "等待并读取 safety_event_record", "safety_event_poll/read", "safety_event.c + safety_alarmd.c", "alarmd"),
+          dn("ioctl", "SET_USER_ALARM ioctl", 1020, 245, "user", "用户态提交 radar OR ai", "safety_event_ioctl", "safety_event_uapi.h + safety_event.c", "alarmd"),
+          dn("merge", "apply_alarm_locked()", 775, 405, "kernel", "door OR low_lux OR user", "状态合并", "drivers/safety_event/safety_event.c", "driver"),
+          dn("actuator", "LED / PWM", 1020, 405, "output", "本地声光输出", "gpiod_set_value / pwm_apply_state", "drivers/safety_event/safety_event.c", "driver")
+        ],
+        edges: [
+          de("d1","dt","probe","of_match → probe","boot","GPIO/PWM/I2C resources","驱动注册且 compatible 匹配","platform 总线绑定","safety_event_probe()"),
+          de("d2","probe","irq","request threaded IRQ","boot","door GPIO + IRQ","probe 初始化成功","内核注册关系","safety_event_probe()"),
+          de("d3","probe","work","schedule delayed_work","async","BH1750 周期任务","I2C client 初始化成功","内核工作队列","safety_event_probe()"),
+          de("d4","irq","publish","publish door event","async","door active + timestamp","去抖门通过且状态变化","threaded IRQ 内函数调用","safety_event_door_irq_thread()"),
+          de("d5","work","publish","publish lux event/sample","async","lux + alarm state","采样完成或阈值穿越","delayed_work 内函数调用","safety_event_bh1750_work()"),
+          de("d6","publish","poll","wake → poll/read","async","safety_event_record","新 sequence 写入后","wait queue + 字符设备","safety_event_publish()/poll()/read()","已验证"),
+          de("d7","poll","ioctl","用户告警变化时调用","ipc","radar OR ai","safety_alarmd 规则结果改变","用户态控制流","apply_user_alarm()"),
+          de("d8","ioctl","merge","更新 user_alarm","hardware","0/1","ioctl 参数合法","内核同步调用","safety_event_ioctl()"),
+          de("d9","irq","merge","更新 door_alarm","hardware","门磁状态","去抖后状态改变","内核同步调用","safety_event_door_irq_thread()"),
+          de("d10","work","merge","更新 low_lux_alarm","hardware","迟滞状态","lux 穿越 30/50 阈值","内核同步调用","safety_event_bh1750_work()"),
+          de("d11","merge","actuator","GPIO/PWM apply","hardware","最终 alarm_active","OR 结果改变","硬件执行","safety_event_apply_alarm_locked()","已验证")
+        ],
+        sequence: {
+          actors: [["sensor","门磁/BH1750"],["irq","IRQ/work"],["record","event record"],["wait","wait queue"],["app","safety_alarmd"],["output","LED/PWM"]],
+          messages: [
+            sm("sensor","irq","1. 产生状态变化","门磁触发 IRQ；BH1750 由 delayed_work 周期读取。","safety_event.c","async","已验证"),
+            sm("irq","record","2. publish 写事件字段","在锁保护下更新单槽记录和 sequence。","safety_event_publish()"),
+            sm("irq","wait","3. wake_up_interruptible","只唤醒 poll 等待者，不携带事件数据。","safety_event_publish()","async"),
+            sm("wait","app","4. poll 返回可读","等待条件由 sequence 是否未消费决定。","safety_event_poll()","async"),
+            sm("app","record","5. read 复制记录","copy_to_user 返回 safety_event_record。","safety_event_read()"),
+            sm("app","output","6. ioctl 经驱动合并后执行","仅用户告警路径需要 ioctl；门磁/低照度由驱动直接合并。","apply_user_alarm()/safety_event_ioctl()","sync","已验证")
+          ]
+        }
+      },
+      {
+        id: "alarm", title: "多源告警联动", summary: "门磁和低照度在驱动内形成一级状态，雷达和 AI 在 safety_alarmd 内形成用户告警，再进行第二级合并。",
+        conclusion: "清除某一路告警只释放该来源，不应覆盖其他来源；最终输出是 driver 中 door OR low_lux OR user 的结果。",
+        nodes: [
+          dn("door","门磁状态",40,60,"hardware","驱动直接告警源","door_irq_thread", "safety_event.c"),
+          dn("lux","BH1750 低照度",40,220,"hardware","驱动直接告警源","bh1750_work", "safety_event.c"),
+          dn("radar","LD2410B 雷达",40,380,"hardware","用户态规则源","process_ld2410b_frames / update_rear_monitor", "safety_alarmd.c"),
+          dn("ai","AI ROI 状态",40,540,"user","外部 AI 告警源","INTRUSION_EVENT/CLEAR", "ai_yolov5/src/main.cc", "ai", "ai"),
+          dn("usermerge","radar OR ai",330,430,"user","safety_alarmd 用户告警合并", "apply_user_alarm", "safety_alarmd.c", "alarmd"),
+          dn("ioctl","SET_USER_ALARM ioctl",610,430,"kernel","跨用户/内核控制边界","safety_event_ioctl", "safety_event_uapi.h", "driver", "driver"),
+          dn("drivermerge","door OR low_lux OR user",850,230,"kernel","驱动最终告警仲裁","safety_event_apply_alarm_locked", "safety_event.c", "driver", "driver"),
+          dn("output","LED + PWM",1110,230,"output","最终本地现象","GPIO/PWM apply", "safety_event.c", "driver", "driver"),
+          dn("snapshot","snapshot JSON",850,520,"data","向数据链暴露各来源状态","format_snapshot_response", "safety_alarmd.c", "data", "data")
+        ],
+        edges: [
+          de("a1","door","drivermerge","door_alarm","hardware","bool","GPIO 去抖后状态改变","驱动内部状态","door_irq_thread()","已验证"),
+          de("a2","lux","drivermerge","low_lux_alarm","hardware","bool","lux <=30 触发 / >=50 恢复","驱动内部状态","bh1750_work()","已验证"),
+          de("a3","radar","usermerge","radar_alarm","async","bool","启用后近距 2 s / 清除 5 s","用户态状态机","update_rear_monitor()","已验证"),
+          de("a4","ai","usermerge","AI_ALARM 1/0","ipc","bool","stdout 经 bridge 转发","管道 + Unix socket","main.cc + ai_alarm_bridge.c"),
+          de("a5","usermerge","ioctl","仅变化时提交","hardware","radar OR ai","合并结果变化","ioctl 系统调用","apply_user_alarm()","已验证"),
+          de("a6","ioctl","drivermerge","user_alarm","hardware","0/1","UAPI 校验通过","驱动内部状态","safety_event_ioctl()","已验证"),
+          de("a7","drivermerge","output","apply output","hardware","最终 alarm_active","三路 OR 结果改变","GPIO/PWM 控制","apply_alarm_locked()","已验证"),
+          de("a8","usermerge","snapshot","来源状态", "data","radar/ai/user alarm","snapshot 命令到达","JSON 响应","format_snapshot_response()")
+        ],
+        sequence: {
+          actors: [["source","雷达/AI"],["alarmd","safety_alarmd"],["dev","/dev/safety_event"],["driver","driver OR"],["output","LED/PWM"],["state","snapshotd"]],
+          messages: [
+            sm("source","alarmd","1. radar 或 AI 状态变化","雷达由 TTY 解析；AI 由 stdout 管道经 bridge 到控制 socket。","safety_alarmd.c + ai_alarm_bridge.c","async"),
+            sm("alarmd","alarmd","2. radar OR ai","只有合并结果改变时才申请更新。","apply_user_alarm()"),
+            sm("alarmd","dev","3. SET_USER_ALARM ioctl","跨越用户态/内核边界。","safety_event_uapi.h","sync","已验证"),
+            sm("dev","driver","4. 更新 user_alarm","与 door_alarm、low_lux_alarm 再做 OR。","safety_event_ioctl()"),
+            sm("driver","output","5. 更新 LED/PWM","任一来源仍 active 时输出保持。","safety_event_apply_alarm_locked()","sync","已验证"),
+            sm("state","alarmd","6. snapshot","数据链读取来源状态，不直接控制输出。","format_snapshot_response()","sync")
+          ]
+        }
+      },
+      {
+        id: "ai", title: "AI 推理、告警与视频分流", summary: "同一采集线程向推理和编码两条最新帧路径供数，告警文本与 H.264 走不同跨进程接口。",
+        conclusion: "AI 不直接调用告警驱动：告警走 stdout→bridge→控制 socket→safety_alarmd→ioctl；视频走 h264.sock→GStreamer。",
+        nodes: [
+          dn("uvc","USB UVC / V4L2",40,190,"hardware","唯一摄像头输入","open/ioctl/mmap/DQBUF", "ai_yolov5/src/main.cc"),
+          dn("capture","CaptureWorker",280,190,"user","保留推理和编码最新帧","capture loop / LatestFrame", "ai_yolov5/src/main.cc", "ai"),
+          dn("prep","BGR→RGB / RGA",520,70,"user","模型输入预处理","imcvtcolor / imresize", "ai_yolov5/src/main.cc", "ai"),
+          dn("rknn","RKNN 推理",760,70,"user","NPU 执行","rknn_inputs_set/run/outputs_get", "ai_yolov5/src/main.cc", "ai"),
+          dn("roi","post_process + ROI",1000,70,"user","person 筛选和危险区状态机","post_process / foot point", "main.cc + postprocess.cc", "ai"),
+          dn("stdout","stdout 事件",1000,240,"data","告警文本输出","INTRUSION_EVENT/CLEAR", "ai_yolov5/src/main.cc", "ai"),
+          dn("bridge","ai_alarm_bridge",760,360,"user","文本转控制命令","stdin loop / send_command", "safety_alarmd/ai_alarm_bridge.c", "alarmd"),
+          dn("alarmd","safety_alarmd",1000,430,"user","合并 AI 与雷达","apply_user_alarm", "safety_alarmd.c", "alarmd", "alarm"),
+          dn("encoder","EncoderWorker / MPP",520,360,"user","叠加与 H.264 编码","LatestOverlay / MPP", "ai_yolov5/src/main.cc", "ai"),
+          dn("h264","h264.sock",760,530,"data","单客户端 Annex-B 包","H264AccessUnitPublisher", "ai_yolov5/src/main.cc", "hmi", "hmi"),
+          dn("hmi","H264VideoBridge",1000,590,"ui","GStreamer 硬解并送 Wayland","appsrc→mppvideodec→waylandsink", "hmi_qml/src/h264_video_bridge.cpp", "hmi", "hmi")
+        ],
+        edges: [
+          de("i1","uvc","capture","V4L2 frame","media","1280x720 buffer","DQBUF 成功","设备接口","main.cc","已验证"),
+          de("i2","capture","prep","latest inference frame","media","BGR image","推理线程取到新序号","进程内线程同步","CaptureWorker/LatestFrame"),
+          de("i3","prep","rknn","tensor input","media","RGB resized tensor","预处理完成","RKNN API","rknn_inputs_set()","已验证"),
+          de("i4","rknn","roi","quantized outputs","media","检测输出 tensor","rknn_run 完成","RKNN API","rknn_outputs_get()/post_process()","已验证"),
+          de("i5","roi","stdout","事件文本","async","INTRUSION_EVENT/CLEAR","ROI 状态改变","标准输出","main.cc","已验证"),
+          de("i6","stdout","bridge","外部部署管道","async","一行文本","shell 建立管道","跨进程 stdin；当前无最终 AI SysV 脚本","ai_alarm_bridge.c","未实现自动启动脚本"),
+          de("i7","bridge","alarmd","AI_ALARM 1/0","ipc","文本控制命令","bridge 解析事件","Unix SOCK_STREAM","ai_alarm_bridge.c + safety_alarmd.c"),
+          de("i8","capture","encoder","latest encode frame","media","BGR frame","编码线程取到新序号","进程内线程同步","CaptureWorker/EncoderWorker"),
+          de("i9","roi","encoder","LatestOverlay", "data","检测框与 ROI 快照","推理结果更新","进程内共享快照","LatestOverlay"),
+          de("i10","encoder","h264","Annex-B access unit","media","SPS/PPS/IDR + slices","MPP 编码完成","Unix SOCK_SEQPACKET","H264AccessUnitPublisher"),
+          de("i11","h264","hmi","recv packet","media","H.264 access unit","监控页激活并连接","SOCK_SEQPACKET + GStreamer","h264_video_bridge.cpp","待复验")
+        ],
+        sequence: {
+          actors: [["camera","UVC"],["capture","CaptureWorker"],["npu","RGA/RKNN"],["roi","ROI"],["bridge","AI bridge"],["alarmd","safety_alarmd"],["driver","safety_event"]],
+          messages: [
+            sm("camera","capture","1. DQBUF 最新帧","CaptureWorker 是唯一摄像头打开者。","main.cc","async","已验证"),
+            sm("capture","npu","2. RGB/RGA → RKNN","设置输入、运行并取得输出。","rknn_inputs_set/run/outputs_get","sync","已验证"),
+            sm("npu","roi","3. post_process","反量化、阈值、NMS、坐标恢复。","postprocess.cc"),
+            sm("roi","bridge","4. stdout 事件","需要部署层建立进程管道。","main.cc + ai_alarm_bridge.c","async"),
+            sm("bridge","alarmd","5. AI_ALARM 1/0","通过 /run/safety_alarmd.sock 发送文本命令。","ai_alarm_bridge.c","sync"),
+            sm("alarmd","driver","6. SET_USER_ALARM ioctl","先与雷达告警 OR，再写入驱动。","apply_user_alarm()/safety_event_ioctl()","sync","已验证")
+          ]
+        }
+      },
+      {
+        id: "data", title: "统一状态、SQLite 与 MQTT", summary: "当前状态、不可变事件和远程发布三种数据所有权的完整链路。",
+        conclusion: "system_state.json 是当前快照，不是事件队列；SQLite 保存边沿事件；MQTT 以 event_id 游标发布，但 QoS 1 仍不等于业务端去重或消费确认。",
+        nodes: [
+          dn("alarmd","safety_alarmd snapshot",40,100,"user","安全与雷达当前状态","format_snapshot_response", "safety_alarmd.c", "alarmd"),
+          dn("airuntime","ai_runtime.json",40,280,"data","AI 在线、入侵和性能快照","publish_ai_runtime_state", "ai_yolov5/src/main.cc", "ai"),
+          dn("snapshot","state_snapshotd",310,190,"data","周期合并两个输入","request_snapshot / write_atomic", "state_snapshotd.c", "data"),
+          dn("state","system_state.json",580,190,"data","统一当前状态","temp + fsync + rename", "state_snapshotd.c", "data"),
+          dn("sqlite","sqlite_eventd",850,70,"data","比较 tracker 与阈值","process_snapshot", "sqlite_eventd.c", "data"),
+          dn("db","industrial_safety.db",1110,70,"data","保存事件边沿","database_insert_event", "sqlite_eventd.c", "data"),
+          dn("mqtt","mqtt_reporterd",850,310,"data","发布状态和新事件","publish_status / publish_events", "mqtt_reporterd.c", "data"),
+          dn("broker","MQTT Broker",1110,310,"output","远程接收端","availability/status/event topics", "mqtt_reporterd.c"),
+          dn("runtime","RuntimeModel",850,500,"ui","500 ms 读取 JSON","RuntimeModel::refresh", "hmi_qml/src/runtime_model.cpp", "hmi"),
+          dn("history","HistoryModel",1110,500,"ui","1 s 查询 SQLite","HistoryModel::reload", "hmi_qml/src/history_model.cpp", "hmi")
+        ],
+        edges: [
+          de("s1","alarmd","snapshot","snapshot command/reply","ipc","安全状态 JSON","周期请求","Unix SOCK_STREAM","state_snapshotd.c + safety_alarmd.c"),
+          de("s2","airuntime","snapshot","read JSON","data","AI 状态 + monotonic_ms","周期读取；超过 5 s 视为离线","文件边界","state_snapshotd.c"),
+          de("s3","snapshot","state","atomic publish","data","统一状态 JSON","两个输入合并完成","write temp + fsync + rename","write_atomic()","已验证"),
+          de("s4","state","sqlite","1 s poll","data","当前状态字段","定时循环","普通文件读取","sqlite_eventd.c","已验证"),
+          de("s5","sqlite","db","transaction INSERT","data","触发/恢复边沿","tracker 或阈值状态改变","SQLite 单行事务","database_insert_event()","已验证"),
+          de("s6","state","mqtt","retained status","data","完整当前状态","5 s 周期","MQTT QoS 1","publish_status()"),
+          de("s7","db","mqtt","event_id > cursor","data","新增事件行","查询到更大 event_id","SQLite SELECT","publish_events()"),
+          de("s8","mqtt","broker","publish", "data","availability/status/event","连接可用且有待发数据","MQTT QoS 1","mqtt_reporterd.c","待完整板端复验"),
+          de("s9","state","runtime","500 ms refresh","data","实时属性","QTimer 触发","JSON parse","RuntimeModel::refresh()","已验证"),
+          de("s10","db","history","1 s reload","data","历史事件行","QTimer/页面模型刷新","SQLite query","HistoryModel::reload()","已验证")
+        ],
+        sequence: {
+          actors: [["snapshot","state_snapshotd"],["alarmd","safety_alarmd"],["ai","ai_runtime.json"],["state","system_state.json"],["sqlite","sqlite_eventd/DB"],["mqtt","mqtt_reporterd"],["hmi","HMI"]],
+          messages: [
+            sm("snapshot","alarmd","1. snapshot 请求","从控制 socket 取得安全快照。","request_snapshot()"),
+            sm("alarmd","snapshot","2. JSON 回复","format_snapshot_response 生成文本。","safety_alarmd.c"),
+            sm("snapshot","ai","3. 读取 AI 快照","检查 monotonic_ms 新鲜度。","state_snapshotd.c"),
+            sm("snapshot","state","4. 原子发布","临时文件、fflush、fsync、rename。","write_atomic()","sync","已验证"),
+            sm("state","sqlite","5. 每秒读取","比较边沿并事务 INSERT。","sqlite_eventd.c","async","已验证"),
+            sm("state","mqtt","6. retained status","每 5 s 发布统一状态。","mqtt_reporterd.c","async"),
+            sm("sqlite","mqtt","7. event_id 游标","发布新事件后保存本地游标。","publish_events()/save_cursor()","async"),
+            sm("state","hmi","8. 500 ms 刷新","RuntimeModel 更新 QML 属性。","runtime_model.cpp","async","已验证")
+          ]
+        }
+      },
+      {
+        id: "hmi", title: "HMI 状态、历史与视频联动", summary: "QML 不直接访问设备；C++ 模型和视频桥分别消费 JSON、SQLite 与 H.264 socket。",
+        conclusion: "HMI 是展示层，不是告警权威。实时、历史和视频是三条独立输入；当前 H.264 顶层版本仍需板端出图与重连专项复验。",
+        nodes: [
+          dn("systemui","factory systemui",40,80,"ui","应用入口","deploy/industrial_safety", "hmi_qml/deploy/industrial_safety", "hmi"),
+          dn("main","main.cpp",310,80,"ui","创建应用并注入四个 context object","QQmlContext::setContextProperty", "hmi_qml/src/main.cpp", "hmi"),
+          dn("state","system_state.json",40,260,"data","实时状态输入","atomic JSON", "state_snapshotd.c", "data"),
+          dn("runtime","RuntimeModel",310,260,"ui","500 ms 解析统一状态","refresh", "hmi_qml/src/runtime_model.cpp", "hmi"),
+          dn("db","industrial_safety.db",40,440,"data","历史事件输入","events table", "sqlite_eventd.c", "data"),
+          dn("history","HistoryModel",310,440,"ui","1 s 查询历史","reload", "hmi_qml/src/history_model.cpp", "hmi"),
+          dn("h264","h264.sock",40,620,"data","Annex-B 视频包","SOCK_SEQPACKET", "ai_yolov5/src/main.cc", "ai"),
+          dn("bridge","H264VideoBridge",310,620,"ui","连接、解码和窗口绑定","poll/setActive/setRenderRect", "hmi_qml/src/h264_video_bridge.cpp", "hmi"),
+          dn("qml","Main.qml",650,330,"ui","实时监控、告警、环境、历史、诊断","property binding / page state", "hmi_qml/qml/Main.qml", "hmi"),
+          dn("wayland","Wayland / MIPI LCD",1010,330,"output","最终可视输出","waylandsink / window handle", "h264_video_bridge.cpp", "hmi")
+        ],
+        edges: [
+          de("h1","systemui","main","启动应用", "boot","前台 HMI 进程","用户点击入口","shell 启动；退出后恢复 systemui","deploy/industrial_safety","已验证"),
+          de("h2","main","qml","注入 context objects","ipc","runtime/video/history/activeHistory","QQmlApplicationEngine 加载前","Qt 进程内对象绑定","main.cpp","已验证"),
+          de("h3","state","runtime","500 ms read","data","JSON 状态","QTimer 触发","文件读取","RuntimeModel::refresh()","已验证"),
+          de("h4","runtime","qml","NOTIFY / property binding","data","实时属性","模型值变化","Qt 信号属性","runtime_model.cpp + Main.qml","已验证"),
+          de("h5","db","history","1 s query","data","events rows","QTimer 触发","SQLite 查询","HistoryModel::reload()","已验证"),
+          de("h6","history","qml","QAbstractListModel","data","历史列表","model reset/data change","Qt model-view","history_model.cpp + Main.qml","已验证"),
+          de("h7","h264","bridge","recv packet","media","H.264 access unit","监控页激活","Unix SOCK_SEQPACKET","h264_video_bridge.cpp","待复验"),
+          de("h8","bridge","qml","setActive/render rect","media","页面可见性与区域","页面切换/尺寸变化","QML→C++ invokable","Main.qml + h264_video_bridge.cpp","待复验"),
+          de("h9","bridge","wayland","GStreamer sink","media","解码帧","pipeline PLAYING","appsrc→h264parse→mppvideodec→waylandsink","h264_video_bridge.cpp","待复验"),
+          de("h10","qml","wayland","Qt scene graph","media","界面控件与文本","属性变化","Qt/Wayland","Main.qml","已验证")
+        ],
+        sequence: {
+          actors: [["user","用户"],["systemui","systemui"],["main","HMI main"],["runtime","Runtime/History"],["qml","Main.qml"],["video","VideoBridge"],["wayland","Wayland"]],
+          messages: [
+            sm("user","systemui","1. 点击应用入口","启动工业安全 HMI。","deploy/industrial_safety","sync","已验证"),
+            sm("systemui","main","2. 启动进程","shell trap 在退出后恢复 systemui。","deploy/industrial_safety"),
+            sm("main","qml","3. 注入四个对象并加载 QML","runtime、videoBridge、history、activeHistory。","main.cpp","sync","已验证"),
+            sm("runtime","qml","4. 定时属性刷新","JSON 每 500 ms；SQLite 每 1 s。","runtime_model.cpp + history_model.cpp","async","已验证"),
+            sm("user","qml","5. 进入监控页","页面激活视频并提交渲染矩形。","Main.qml"),
+            sm("qml","video","6. setActive/setRenderRect","建立 h264.sock 与 GStreamer 链。","h264_video_bridge.cpp"),
+            sm("video","wayland","7. mppvideodec → waylandsink","源码和构建可证，当前版本出图/重连待板端复验。","h264_video_bridge.cpp","async","待复验")
+          ]
+        }
+      },
+      {
+        id: "boot", title: "BSP、服务与界面启动", summary: "区分前级启动、内核/根文件系统、SysV 服务和由 systemui 用户触发的 HMI。",
+        conclusion: "脚本编号只表示安装后的排序意图，不证明服务已部署或运行；当前工程没有可审计的 AI SysV 启动脚本。",
+        nodes: [
+          dn("rom","BootROM / Loader",40,170,"hardware","装载前级并初始化 DDR","SoC boot flow", "Rockchip BSP"),
+          dn("uboot","U-Boot",290,170,"kernel","选择网络启动或 eMMC 回退","tftpboot / booti", "U-Boot environment", "bsp"),
+          dn("image","TFTP Image + DTB",540,70,"data","项目内核与板级描述","Image / rk3568-safety-terminal.dtb", "scripts/build_project_dtb.sh", "bsp"),
+          dn("rootfs","NFS Buildroot rootfs",540,270,"data","用户空间与 SysV init","bootargs root=/dev/nfs", "Buildroot output", "bsp"),
+          dn("linux","Linux 4.19",790,170,"kernel","解析 DTB、初始化驱动并挂载根","booti / of_platform", "kernel + project DTB", "bsp", "driver"),
+          dn("s90","S90safety_alarmd",1040,40,"user","保证设备并监督 alarmd","start/stop/restart", "safety_alarmd/S90safety_alarmd", "alarmd"),
+          dn("s92","S92state_snapshotd",1040,170,"data","启动状态快照服务","start/stop；restart 缺失", "state_snapshotd/S92state_snapshotd", "data"),
+          dn("s94","S94sqlite_eventd",1040,300,"data","启动 SQLite 事件服务","start/stop", "sqlite_eventd/S94sqlite_eventd", "data"),
+          dn("s95","S95mqtt_reporterd",1040,430,"data","启动 MQTT 上报服务","start/stop/restart", "mqtt_reporterd/S95mqtt_reporterd", "data"),
+          dn("systemui","factory systemui",790,550,"ui","桌面应用入口","industrial_safety launcher", "hmi_qml/deploy/industrial_safety", "hmi"),
+          dn("hmi","Qt/QML HMI",1040,550,"ui","用户点击后前台运行","industrial_safety_hmi", "hmi_qml", "hmi")
+        ],
+        edges: [
+          de("b1","rom","uboot","加载并移交", "boot","U-Boot image","BootROM/Loader 完成","启动阶段","BSP 基线","已验证"),
+          de("b2","uboot","image","tftpboot", "boot","Image + DTB","网络启动路径被选择","TFTP","U-Boot env + TFTP artifacts","已验证"),
+          de("b3","uboot","rootfs","bootargs NFS", "boot","NFS server/path","网络根参数生效","NFS mount config","U-Boot bootargs","已验证"),
+          de("b4","image","linux","booti", "boot","kernel + fdt","下载成功","U-Boot→Linux","boot log","已验证"),
+          de("b5","rootfs","linux","mount rootfs", "boot","Buildroot 用户空间","内核网络与 NFS 可用","Linux mount","boot log","已验证"),
+          de("b6","linux","s90","SysV init 顺序", "boot","服务脚本","进入用户空间 init","脚本启动","S90safety_alarmd","已验证"),
+          de("b7","linux","s92","SysV init 顺序", "boot","服务脚本","进入用户空间 init","脚本启动","S92state_snapshotd","源码缺少 restart"),
+          de("b8","linux","s94","SysV init 顺序", "boot","服务脚本","进入用户空间 init","脚本启动","S94sqlite_eventd","已验证"),
+          de("b9","linux","s95","SysV init 顺序", "boot","服务脚本","进入用户空间 init","脚本启动","S95mqtt_reporterd","待完整板端复验"),
+          de("b10","linux","systemui","Wayland/systemui", "boot","factory UI","显示栈就绪","系统界面启动","factory systemui","已验证"),
+          de("b11","systemui","hmi","用户点击入口", "boot","HMI 进程","选择工业安全应用","前台启动并退出恢复","deploy/industrial_safety","已验证")
+        ],
+        sequence: {
+          actors: [["rom","BootROM"],["uboot","U-Boot"],["server","TFTP/NFS"],["linux","Linux"],["init","SysV init"],["systemui","systemui"],["hmi","HMI"]],
+          messages: [
+            sm("rom","uboot","1. 加载前级","Loader 完成 DDR 后进入 U-Boot。","Rockchip BSP","sync","已验证"),
+            sm("uboot","server","2. TFTP 请求 Image/DTB","使用项目 DTB 文件名。","U-Boot environment","sync","已验证"),
+            sm("server","uboot","3. 返回启动产物","下载成功后准备 booti。","TFTP artifacts","sync","已验证"),
+            sm("uboot","linux","4. booti","传递 Image、DTB 和 bootargs。","U-Boot boot command","sync","已验证"),
+            sm("linux","server","5. 挂载 NFS rootfs","失败时可回到 eMMC 基线。","bootargs","sync","已验证"),
+            sm("linux","init","6. 启动 SysV 服务","S90/S92/S94/S95 是否运行仍需分别看安装与日志。","service scripts","async"),
+            sm("init","systemui","7. 启动 factory UI","HMI 不是常驻 S93 服务。","factory systemui","async","已验证"),
+            sm("systemui","hmi","8. 用户点击后启动","退出后 shell trap 恢复 systemui。","deploy/industrial_safety","sync","已验证")
+          ]
+        }
+      }
+    ];
+
+    const evidence = [
+      ["BSP 启动与回退", "verified", "TFTP+NFS、eMMC 回退、4.19.232-safety-v1 和模块 vermagic 有历史证据。"],
+      ["门磁、LED、PWM、BH1750", "verified", "实体联动、采样和断线恢复有板端记录。"],
+      ["SHT3x 与 LD2410B", "verified", "hwmon 读取、UART 帧解析及真实雷达场景已有验证。"],
+      ["USB 摄像头、RKNN 与 ROI", "verified", "板端运行日志、性能摘要和证据图存在。"],
+      ["统一状态与 SQLite", "verified", "快照、数据库行和高光照触发/恢复中文显示已有证据。"],
+      ["MQTT S95 完整服务", "pending", "源码和 ARM64 构建存在，但现有日志没有完整正式板端验收闭环。"],
+      ["QML 页面与历史", "verified", "新版主界面、历史和高光照中文文案有验收记录。"],
+      ["当前 QML H.264", "pending", "桥接源码和链接产物存在，缺少同版本板端出图/重连专项证据。"],
+      ["HMI 参数修改/告警确认/服务重启", "missing", "当前 Main.qml 诊断页明确说明接口尚未开放。"],
+      ["AI SysV 启动脚本", "missing", "当前最终工程树没有可审计脚本，不能虚构 S91 的具体内容。"]
+    ];
+
+    const reviewQuestions = [
+      "DTS 的 compatible 怎样走到 safety_event_probe()？",
+      "事件记录与 wait queue 分别保存什么？",
+      "为什么当前字符设备不能称为可靠事件队列？",
+      "door、low_lux、radar、AI 告警怎样分两级 OR？",
+      "SHT3x、BH1750、LD2410B 为什么走三种不同接入路径？",
+      "AI 单次推理从 V4L2 到 INTRUSION_EVENT 的时序是什么？",
+      "AI 进程和 ai_alarm_bridge 为什么不是函数直接调用？",
+      "state_snapshotd、sqlite_eventd、mqtt_reporterd 的数据所有权有何不同？",
+      "为什么 MQTT QoS 1 加游标仍可能重复？",
+      "最终 QML 的四个 context object 分别做什么？"
+    ];
+
+    const title = document.getElementById("view-title");
+    const subtitle = document.getElementById("view-subtitle");
+    const nav = document.getElementById("nav");
+    const mobileNav = document.getElementById("mobile-nav");
+    const search = document.getElementById("search");
+    let activeView = "overview";
+    let activeModule = modules[0].id;
+    let activeScenario = scenarios[0].id;
+    let activeDiagram = "whole";
+    let diagramMode = "flow";
+    let diagramDensity = "standard";
+    let diagramFilter = "all";
+    let diagramSearch = "";
+    let diagramSelection = null;
+    let diagramTraceStep = -1;
+    let diagramExpanded = true;
+    const diagramViewBoxes = new Map();
+
+    function esc(value) {
+      return String(value).replace(/[&<>"']/g, character => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"})[character]);
+    }
+
+    function badge(status, text) {
+      return `<span class="badge ${status}">${esc(text)}</span>`;
+    }
+
+    function evidenceBadge(value) {
+      const normalized = String(value || "源码可证");
+      if (normalized.includes("已验证")) return badge("verified", normalized);
+      if (normalized.includes("未实现") || normalized.includes("缺失")) return badge("missing", normalized);
+      if (normalized.includes("待")) return badge("pending", normalized);
+      return badge("source", normalized);
+    }
+
+    function renderNavigation() {
+      nav.innerHTML = views.map(view => `<button data-view="${view[0]}" class="${view[0] === activeView ? "active" : ""}">${view[1]}</button>`).join("");
+      mobileNav.innerHTML = views.map(view => `<option value="${view[0]}" ${view[0] === activeView ? "selected" : ""}>${view[1]}</option>`).join("");
+      nav.querySelectorAll("button").forEach(button => button.addEventListener("click", () => showView(button.dataset.view)));
+    }
+
+    function showView(id) {
+      activeView = id;
+      document.querySelectorAll(".view").forEach(view => view.classList.toggle("active", view.id === id));
+      const info = views.find(view => view[0] === id);
+      title.textContent = info[1];
+      subtitle.textContent = info[2];
+      search.value = "";
+      renderNavigation();
+      if (id === "modules") renderModules("");
+      if (id === "interfaces") renderInterfaces("");
+      if (id === "diagrams") renderDiagrams();
+      window.scrollTo({top: 0, behavior: "auto"});
+    }
+
+    function renderOverview() {
+      document.getElementById("overview").innerHTML = `
+        <div class="section-head"><div><h3>一个系统，六个责任域</h3><p>先认清所有权，再沿接口追执行顺序。</p></div></div>
+        <div class="band"><h4>项目一句话</h4><p>基于 RK3568 Linux 的工业安全辅助监测原型：设备树和驱动接入板级资源，用户态汇总传感器、雷达与 AI，最终形成本地声光告警、统一状态、SQLite 历史、MQTT 上报和 Qt/QML HMI。</p></div>
+        <div class="architecture">
+          <div class="layer"><div class="layer-label">硬件层</div><div class="nodes"><span class="node">门磁</span><span class="node">BH1750</span><span class="node">SHT3x</span><span class="node">LD2410B</span><span class="node">USB UVC</span><span class="node">LED / PWM</span><span class="node">MIPI LCD</span></div></div>
+          <div class="layer"><div class="layer-label">设备树与内核</div><div class="nodes"><span class="node kernel">项目 DTS/DTSI</span><span class="arrow">→</span><span class="node kernel">safety_event.ko</span><span class="node kernel">hwmon</span><span class="node kernel">TTY</span><span class="node kernel">V4L2</span><span class="node kernel">DRM/Wayland</span></div></div>
+          <div class="layer"><div class="layer-label">实时处理</div><div class="nodes"><span class="node user">safety_alarmd</span><span class="node user">rk3568_yolov5_demo</span><span class="node user">ai_alarm_bridge</span></div></div>
+          <div class="layer"><div class="layer-label">数据服务</div><div class="nodes"><span class="node data">state_snapshotd</span><span class="node data">system_state.json</span><span class="node data">sqlite_eventd</span><span class="node data">industrial_safety.db</span><span class="node data">mqtt_reporterd</span></div></div>
+          <div class="layer"><div class="layer-label">本地显示</div><div class="nodes"><span class="node ui">Qt/QML HMI</span><span class="node ui">factory systemui</span><span class="node ui">MIPI LCD</span></div></div>
+        </div>
+        <div class="section-head"><div><h3>三条必须记住的主线</h3><p>每条链都从真实输入追到最终现象。</p></div></div>
+        <div class="chain-strip">
+          <div class="chain-step"><strong>1. 资源</strong>DTS/DTSI<br>compatible 与 pinctrl</div>
+          <div class="chain-step"><strong>2. 内核</strong>probe / IRQ / work<br>字符设备与执行器</div>
+          <div class="chain-step"><strong>3. 实时</strong>poll/read、TTY、V4L2<br>规则与 AI 推理</div>
+          <div class="chain-step"><strong>4. 告警</strong>socket + ioctl<br>两级 OR 合并</div>
+          <div class="chain-step"><strong>5. 数据</strong>JSON -> SQLite<br>MQTT event_id 游标</div>
+          <div class="chain-step"><strong>6. 显示</strong>Runtime/History/Video<br>QML + Wayland</div>
+        </div>
+        <div class="band"><h4>最容易记错的事实</h4><p><code>sqlite_eventd</code> 每秒读取 <code>system_state.json</code>，不直接读取 <code>/dev/safety_event</code>。AI 到 <code>ai_alarm_bridge</code> 是部署时建立的 stdout 管道，不是进程内函数调用。最终 HMI 是顶层 <code>userspace/hmi_qml</code>。</p></div>`;
+    }
+
+    function renderModuleDetail(module) {
+      return `<div class="detail">
+        <div class="detail-head"><div><span class="eyebrow">${module.group} / ${esc(module.id)}</span><h4>${esc(module.title)}</h4></div>${badge(module.status, module.statusText)}</div>
+        <div class="detail-body">
+          <div class="detail-block"><h5>职责与边界</h5><ul><li>${esc(module.ownership)}</li><li>${esc(module.boundary)}</li></ul></div>
+          <div class="detail-block"><h5>输入与输出</h5><ul>${module.inputs.map(item => `<li>输入：<code>${esc(item)}</code></li>`).join("")}${module.outputs.map(item => `<li>输出：<code>${esc(item)}</code></li>`).join("")}</ul></div>
+          <div class="detail-block"><h5>当前主源码</h5><ul>${module.files.map(item => `<li><code>${esc(item)}</code></li>`).join("")}</ul></div>
+          <div class="detail-block"><h5>关键函数或入口</h5><ul>${module.functions.map(item => `<li><code>${esc(item)}</code></li>`).join("")}</ul></div>
+          <div class="detail-block"><h5>详细复习</h5><ul><li><code>${esc(module.document)}</code></li><li><code>12-RK3568项目全链路总览与源码索引.md</code></li></ul></div>
+          <div class="detail-block"><h5>准确表述</h5><ul><li>${esc(module.summary)}</li></ul></div>
+        </div>
+      </div>`;
+    }
+
+    function renderModules(query) {
+      const normalized = query.trim().toLowerCase();
+      const filtered = modules.filter(module => JSON.stringify(module).toLowerCase().includes(normalized));
+      if (filtered.length && !filtered.some(module => module.id === activeModule)) activeModule = filtered[0].id;
+      const selected = modules.find(module => module.id === activeModule);
+      document.getElementById("modules").innerHTML = `
+        <div class="section-head"><div><h3>模块、源码与函数</h3><p>${normalized ? `找到 ${filtered.length} 个相关模块` : "点击模块查看真实输入、输出和责任边界。"}</p></div></div>
+        ${filtered.length ? `<div class="grid">${filtered.map(module => `<article class="module-card" data-module="${module.id}" tabindex="0"><span class="eyebrow">${module.group}</span><h4>${esc(module.title)}</h4><p>${esc(module.summary)}</p><div class="meta">${badge(module.status, module.statusText)} &nbsp; ${module.functions.length} 个关键入口</div></article>`).join("")}</div>${renderModuleDetail(selected)}` : `<div class="empty">没有匹配的模块、源码或函数。</div>`}`;
+      document.querySelectorAll(".module-card").forEach(card => {
+        const activate = () => { activeModule = card.dataset.module; renderModules(search.value); document.querySelector(".detail").scrollIntoView({behavior: "smooth", block: "start"}); };
+        card.addEventListener("click", activate);
+        card.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") activate(); });
+      });
+    }
+
+    function renderInterfaces(query) {
+      const normalized = query.trim().toLowerCase();
+      const filtered = interfaces.filter(row => row.join(" ").toLowerCase().includes(normalized));
+      document.getElementById("interfaces").innerHTML = `
+        <div class="section-head"><div><h3>跨模块接口地图</h3><p>箭头关系只有在接口存在时才成立；模块先后顺序不等于函数直接调用。</p></div></div>
+        ${filtered.length ? `<div class="table-wrap"><table><thead><tr><th>接口</th><th>生产者</th><th>消费者</th><th>传递内容</th><th>关键边界</th></tr></thead><tbody>${filtered.map(row => `<tr>${row.map((cell, index) => `<td>${index === 0 ? `<code>${esc(cell)}</code>` : esc(cell)}</td>`).join("")}</tr>`).join("")}</tbody></table></div>` : `<div class="empty">没有匹配的接口。</div>`}
+        <div class="band" style="margin-top:16px"><h4>两级告警合并</h4><p><code>safety_alarmd: radar OR ai</code> → <code>SET_USER_ALARM ioctl</code> → <code>driver: door OR low_lux OR user</code> → LED/PWM。任何一层清除自己的来源时，都不应清除其他来源的所有权。</p></div>`;
+    }
+
+    function splitSvgText(value, maxLength = 18, maxLines = 2) {
+      const text = String(value || "");
+      const lines = [];
+      let rest = text;
+      while (rest.length && lines.length < maxLines) {
+        if (rest.length <= maxLength) { lines.push(rest); rest = ""; break; }
+        let cut = rest.lastIndexOf(" ", maxLength);
+        if (cut < Math.floor(maxLength * .55)) cut = maxLength;
+        lines.push(rest.slice(0, cut));
+        rest = rest.slice(cut).trim();
+      }
+      if (rest && lines.length) lines[lines.length - 1] = `${lines[lines.length - 1].slice(0, Math.max(1, maxLength - 1))}…`;
+      return lines;
+    }
+
+    function svgTspans(lines, x, firstY, className, lineHeight = 15) {
+      return `<text class="${className}" x="${x}" y="${firstY}">${lines.map((line, index) => `<tspan x="${x}" dy="${index ? lineHeight : 0}">${esc(line)}</tspan>`).join("")}</text>`;
+    }
+
+    function diagramBounds(scene, mode) {
+      if (mode === "sequence") {
+        const width = Math.max(1100, scene.sequence.actors.length * 190 + 100);
+        return {x: 0, y: 0, w: width, h: Math.max(620, scene.sequence.messages.length * 68 + 190)};
+      }
+      const maxX = Math.max(...scene.nodes.map(node => node.x + node.w)) + 70;
+      const maxY = Math.max(...scene.nodes.map(node => node.y + node.h)) + 70;
+      return {x: 0, y: 0, w: Math.max(1180, maxX), h: Math.max(650, maxY)};
+    }
+
+    function markerDefs() {
+      return `<defs>
+        <marker id="arrow-main" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#738388"/></marker>
+        <marker id="arrow-red" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#9a3f38"/></marker>
+        <marker id="arrow-blue" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2a6484"/></marker>
+        <marker id="arrow-green" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#176b54"/></marker>
+        <marker id="arrow-focus" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#c08016"/></marker>
+      </defs>`;
+    }
+
+    function edgeGeometry(edge, nodeMap) {
+      const from = nodeMap.get(edge.from);
+      const to = nodeMap.get(edge.to);
+      const fromCenter = {x: from.x + from.w / 2, y: from.y + from.h / 2};
+      const toCenter = {x: to.x + to.w / 2, y: to.y + to.h / 2};
+      const horizontal = Math.abs(toCenter.x - fromCenter.x) >= Math.abs(toCenter.y - fromCenter.y) * .55;
+      let sx, sy, ex, ey;
+      if (horizontal) {
+        const forward = toCenter.x >= fromCenter.x;
+        sx = forward ? from.x + from.w : from.x;
+        ex = forward ? to.x : to.x + to.w;
+        sy = fromCenter.y;
+        ey = toCenter.y;
+      } else {
+        const downward = toCenter.y >= fromCenter.y;
+        sx = fromCenter.x;
+        ex = toCenter.x;
+        sy = downward ? from.y + from.h : from.y;
+        ey = downward ? to.y : to.y + to.h;
+      }
+      let path;
+      let p1;
+      let p2;
+      if (horizontal) {
+        const bend = Math.max(55, Math.abs(ex - sx) * .46);
+        const sign = ex >= sx ? 1 : -1;
+        p1 = {x: sx + bend * sign, y: sy};
+        p2 = {x: ex - bend * sign, y: ey};
+        path = `M ${sx} ${sy} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${ex} ${ey}`;
+      } else {
+        const bend = Math.max(45, Math.abs(ey - sy) * .46);
+        const sign = ey >= sy ? 1 : -1;
+        p1 = {x: sx, y: sy + bend * sign};
+        p2 = {x: ex, y: ey - bend * sign};
+        path = `M ${sx} ${sy} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${ex} ${ey}`;
+      }
+      return {path, p0: {x: sx, y: sy}, p1, p2, p3: {x: ex, y: ey}};
+    }
+
+    function cubicPoint(geometry, t) {
+      const mt = 1 - t;
+      return {
+        x: mt ** 3 * geometry.p0.x + 3 * mt ** 2 * t * geometry.p1.x + 3 * mt * t ** 2 * geometry.p2.x + t ** 3 * geometry.p3.x,
+        y: mt ** 3 * geometry.p0.y + 3 * mt ** 2 * t * geometry.p1.y + 3 * mt * t ** 2 * geometry.p2.y + t ** 3 * geometry.p3.y
+      };
+    }
+
+    function cubicTangent(geometry, t) {
+      const mt = 1 - t;
+      return {
+        x: 3 * mt ** 2 * (geometry.p1.x - geometry.p0.x) + 6 * mt * t * (geometry.p2.x - geometry.p1.x) + 3 * t ** 2 * (geometry.p3.x - geometry.p2.x),
+        y: 3 * mt ** 2 * (geometry.p1.y - geometry.p0.y) + 6 * mt * t * (geometry.p2.y - geometry.p1.y) + 3 * t ** 2 * (geometry.p3.y - geometry.p2.y)
+      };
+    }
+
+    function overlapArea(a, b, padding = 0) {
+      const width = Math.min(a.x + a.w + padding, b.x + b.w + padding) - Math.max(a.x - padding, b.x - padding);
+      const height = Math.min(a.y + a.h + padding, b.y + b.h + padding) - Math.max(a.y - padding, b.y - padding);
+      return width > 0 && height > 0 ? width * height : 0;
+    }
+
+    function placeEdgeLabel(geometry, width, height, nodeBoxes, usedBoxes, bounds) {
+      const positions = [.5, .34, .66, .22, .78, .42, .58, .12, .88];
+      const offsets = [0, -28, 28, -56, 56, -84, 84, -112, 112, -140, 140];
+      const tangentOffsets = [0, -36, 36, -72, 72];
+      let best = null;
+      for (const t of positions) {
+        const point = cubicPoint(geometry, t);
+        const tangent = cubicTangent(geometry, t);
+        const length = Math.hypot(tangent.x, tangent.y) || 1;
+        const normal = {x: -tangent.y / length, y: tangent.x / length};
+        const direction = {x: tangent.x / length, y: tangent.y / length};
+        for (const offset of offsets) {
+          for (const tangentOffset of tangentOffsets) {
+            const center = {x: point.x + normal.x * offset + direction.x * tangentOffset, y: point.y + normal.y * offset + direction.y * tangentOffset};
+            const box = {x: center.x - width / 2, y: center.y - height / 2, w: width, h: height};
+            let score = 0;
+            nodeBoxes.forEach(nodeBox => { score += overlapArea(box, nodeBox, 7) * 8; });
+            usedBoxes.forEach(labelBox => { score += overlapArea(box, labelBox, 5) * 12; });
+            if (box.x < bounds.x + 5 || box.y < bounds.y + 5 || box.x + box.w > bounds.x + bounds.w - 5 || box.y + box.h > bounds.y + bounds.h - 5) score += 100000;
+            score += Math.abs(offset) * .4 + Math.abs(tangentOffset) * .3 + Math.abs(t - .5) * 40;
+            if (!best || score < best.score) best = {x: center.x, y: center.y, box, score};
+            if (score === 0) return best;
+          }
+        }
+      }
+      return best;
+    }
+
+    function flowSvg(scene) {
+      const nodeMap = new Map(scene.nodes.map(node => [node.id, node]));
+      const selectedNode = diagramSelection?.kind === "node" ? diagramSelection.id : "";
+      const selectedEdge = diagramSelection?.kind === "edge" ? diagramSelection.id : "";
+      const relatedEdges = new Set(selectedNode ? scene.edges.filter(edge => edge.from === selectedNode || edge.to === selectedNode).map(edge => edge.id) : []);
+      const relatedNodes = new Set([selectedNode]);
+      scene.edges.forEach(edge => {
+        if (relatedEdges.has(edge.id)) { relatedNodes.add(edge.from); relatedNodes.add(edge.to); }
+      });
+      const query = diagramSearch.trim().toLowerCase();
+      const nodeBoxes = scene.nodes.map(node => ({x: node.x, y: node.y, w: node.w, h: node.h}));
+      const usedLabelBoxes = [];
+      const bounds = diagramBounds(scene, "flow");
+      const edges = scene.edges.map((edge, index) => {
+        const geometry = edgeGeometry(edge, nodeMap);
+        const filtered = diagramFilter !== "all" && edge.type !== diagramFilter;
+        const focused = edge.id === selectedEdge || relatedEdges.has(edge.id);
+        const dimmed = filtered || (!!diagramSelection && !focused && !(selectedEdge && edge.id === selectedEdge));
+        const traceDone = diagramTraceStep >= 0 && index <= diagramTraceStep;
+        const label = splitSvgText(edge.label, 22, 1)[0];
+        const labelWidth = Math.min(202, Math.max(58, label.length * 11 + 18));
+        const placement = placeEdgeLabel(geometry, labelWidth, 24, nodeBoxes, usedLabelBoxes, bounds);
+        usedLabelBoxes.push(placement.box);
+        return `<g class="diagram-edge ${esc(edge.type)} ${edge.id === selectedEdge ? "selected" : ""} ${focused ? "related" : ""} ${dimmed ? "dimmed" : ""} ${filtered ? "filtered" : ""} ${traceDone ? "trace-done" : ""}" data-edge="${esc(edge.id)}">
+          <title>${esc(`${edge.label}｜${edge.data}｜${edge.mode}`)}</title>
+          <path class="edge-line" d="${geometry.path}"/><path class="edge-hit" d="${geometry.path}"/>
+          <rect class="edge-label-bg" x="${placement.x - labelWidth / 2}" y="${placement.y - 12}" width="${labelWidth}" height="24" rx="4"/>
+          <text class="edge-label" x="${placement.x}" y="${placement.y + 4}">${esc(label)}</text>
+        </g>`;
+      }).join("");
+      const nodes = scene.nodes.map(node => {
+        const selected = node.id === selectedNode;
+        const related = relatedNodes.has(node.id);
+        const dimmed = !!diagramSelection && !related && !selectedEdge;
+        const searchText = `${node.label} ${node.role} ${node.fn} ${node.source}`.toLowerCase();
+        const searchHit = query && searchText.includes(query);
+        const titleLines = splitSvgText(node.label, 17, 2);
+        let supplemental = "";
+        if (diagramDensity === "standard") supplemental = splitSvgText(node.role, 23, 1)[0] || "";
+        if (diagramDensity === "source") supplemental = splitSvgText(node.fn, 23, 1)[0] || "";
+        const titleY = node.y + (supplemental ? 25 : 31) - (titleLines.length - 1) * 6;
+        const traceDone = diagramTraceStep >= 0 && scene.edges.slice(0, diagramTraceStep + 1).some(edge => edge.from === node.id || edge.to === node.id);
+        return `<g class="diagram-node ${esc(node.kind)} ${selected ? "selected" : ""} ${related && !selected ? "related" : ""} ${dimmed ? "dimmed" : ""} ${searchHit ? "search-hit" : ""} ${traceDone ? "trace-done" : ""}" data-node="${esc(node.id)}" tabindex="0">
+          <rect x="${node.x}" y="${node.y}" width="${node.w}" height="${node.h}"/>
+          ${svgTspans(titleLines, node.x + node.w / 2, titleY, "node-title", 15)}
+          ${supplemental ? `<text class="node-sub" x="${node.x + node.w / 2}" y="${node.y + node.h - 12}">${esc(supplemental)}</text>` : ""}
+        </g>`;
+      }).join("");
+      return `${markerDefs()}${edges}${nodes}`;
+    }
+
+    function sequenceSvg(scene) {
+      const actors = scene.sequence.actors;
+      const messages = scene.sequence.messages;
+      const actorX = new Map(actors.map((actor, index) => [actor[0], 100 + index * 190]));
+      const bottom = Math.max(560, messages.length * 68 + 145);
+      const actorMarkup = actors.map(actor => {
+        const x = actorX.get(actor[0]);
+        return `<g class="sequence-actor"><rect x="${x - 72}" y="28" width="144" height="48"/><text x="${x}" y="57">${esc(actor[1])}</text><line class="sequence-life" x1="${x}" y1="76" x2="${x}" y2="${bottom}"/></g>`;
+      }).join("");
+      const messageMarkup = messages.map((message, index) => {
+        const fromX = actorX.get(message.from);
+        const toX = actorX.get(message.to);
+        const y = 125 + index * 68;
+        const selected = diagramSelection?.kind === "message" && diagramSelection.id === String(index);
+        const dimmed = diagramSelection?.kind === "message" && !selected;
+        const traceDone = diagramTraceStep >= 0 && index <= diagramTraceStep;
+        const label = splitSvgText(message.label, 30, 1)[0];
+        const labelWidth = Math.min(260, Math.max(78, label.length * 11 + 18));
+        let arrow;
+        let labelX;
+        if (fromX === toX) {
+          arrow = `<path d="M ${fromX} ${y} h 70 v 30 h -68"/>`;
+          labelX = fromX + 38;
+        } else {
+          arrow = `<line x1="${fromX}" y1="${y}" x2="${toX}" y2="${y}"/>`;
+          labelX = (fromX + toX) / 2;
+        }
+        return `<g class="sequence-message ${message.type === "async" ? "async" : ""} ${selected ? "selected" : ""} ${dimmed ? "dimmed" : ""} ${traceDone ? "trace-done" : ""}" data-message="${index}">
+          <title>${esc(`${message.label}｜${message.detail}`)}</title>${arrow}<rect class="sequence-label-bg" x="${labelX - labelWidth / 2}" y="${y - 28}" width="${labelWidth}" height="22" rx="4"/><circle class="step-circle" cx="${Math.min(fromX, toX) - 14}" cy="${y}" r="10"/><text class="step-number" x="${Math.min(fromX, toX) - 14}" y="${y + 3}">${index + 1}</text><text x="${labelX}" y="${y - 12}">${esc(label)}</text>
+        </g>`;
+      }).join("");
+      return `${markerDefs()}${actorMarkup}${messageMarkup}`;
+    }
+
+    function renderDiagramInspector(scene) {
+      if (!diagramSelection) {
+        return `<h4>${esc(scene.title)}</h4><p>${esc(scene.summary)}</p><div class="inspector-list"><div class="inspector-row"><strong>看图结论</strong>${esc(scene.conclusion)}</div><div class="inspector-row"><strong>事实边界</strong>连线表示真实接口、数据依赖或启动关系；只有标明函数调用的连线才代表直接调用。</div></div>`;
+      }
+      if (diagramSelection.kind === "node") {
+        const node = scene.nodes.find(item => item.id === diagramSelection.id);
+        if (!node) return "";
+        const incoming = scene.edges.filter(edge => edge.to === node.id);
+        const outgoing = scene.edges.filter(edge => edge.from === node.id);
+        return `<span class="eyebrow">节点 / ${esc(node.kind)}</span><h4>${esc(node.label)}</h4><p>${esc(node.role)}</p>
+          <div class="inspector-list">
+            <div class="inspector-row"><strong>关键函数或接口</strong><code>${esc(node.fn)}</code></div>
+            <div class="inspector-row"><strong>源码依据</strong><code>${esc(node.source)}</code></div>
+            <div class="inspector-row"><strong>上游输入</strong>${incoming.length ? incoming.map(edge => `${esc(edge.label)} ← ${esc(scene.nodes.find(nodeItem => nodeItem.id === edge.from)?.label || edge.from)}`).join("<br>") : "无图内上游"}</div>
+            <div class="inspector-row"><strong>下游输出</strong>${outgoing.length ? outgoing.map(edge => `${esc(edge.label)} → ${esc(scene.nodes.find(nodeItem => nodeItem.id === edge.to)?.label || edge.to)}`).join("<br>") : "无图内下游"}</div>
+            ${node.drill ? `<div class="inspector-row"><strong>可下钻场景</strong>${esc(diagramScenes.find(item => item.id === node.drill)?.title || node.drill)}</div>` : ""}
+            ${node.module ? `<div class="inspector-row"><strong>模块索引</strong>${esc(modules.find(item => item.id === node.module)?.title || node.module)}</div>` : ""}
+          </div>`;
+      }
+      if (diagramSelection.kind === "edge") {
+        const edge = scene.edges.find(item => item.id === diagramSelection.id);
+        if (!edge) return "";
+        const from = scene.nodes.find(node => node.id === edge.from);
+        const to = scene.nodes.find(node => node.id === edge.to);
+        return `<span class="eyebrow">接口关系 / ${esc(edge.type)}</span><h4>${esc(edge.label)}</h4><p>${esc(from?.label || edge.from)} → ${esc(to?.label || edge.to)}</p>
+          <div class="inspector-list">
+            <div class="inspector-row"><strong>传递内容</strong>${esc(edge.data)}</div>
+            <div class="inspector-row"><strong>触发条件</strong>${esc(edge.trigger)}</div>
+            <div class="inspector-row"><strong>执行方式</strong>${esc(edge.mode)}</div>
+            <div class="inspector-row"><strong>源码依据</strong><code>${esc(edge.source)}</code></div>
+            <div class="inspector-row"><strong>证据等级</strong>${evidenceBadge(edge.evidence)}</div>
+          </div>`;
+      }
+      const message = scene.sequence.messages[Number(diagramSelection.id)];
+      const actorMap = new Map(scene.sequence.actors);
+      return `<span class="eyebrow">时序消息 / 第 ${Number(diagramSelection.id) + 1} 步</span><h4>${esc(message.label)}</h4><p>${esc(actorMap.get(message.from))} → ${esc(actorMap.get(message.to))}</p>
+        <div class="inspector-list"><div class="inspector-row"><strong>本步含义</strong>${esc(message.detail)}</div><div class="inspector-row"><strong>源码依据</strong><code>${esc(message.source)}</code></div><div class="inspector-row"><strong>执行方式</strong>${message.type === "async" ? "异步事件或周期动作" : "同步调用或请求"}</div><div class="inspector-row"><strong>证据等级</strong>${evidenceBadge(message.evidence)}</div></div>`;
+    }
+
+    function renderDiagrams() {
+      const scene = diagramScenes.find(item => item.id === activeDiagram) || diagramScenes[0];
+      const key = `${scene.id}:${diagramMode}`;
+      if (!diagramViewBoxes.has(key)) diagramViewBoxes.set(key, diagramBounds(scene, diagramMode));
+      const viewBox = diagramViewBoxes.get(key);
+      const traceLength = diagramMode === "flow" ? scene.edges.length : scene.sequence.messages.length;
+      document.getElementById("diagrams").innerHTML = `
+        <div class="section-head"><div><h3>源码级全链路关系图</h3><p>${esc(scene.summary)}</p></div></div>
+        <div class="diagram-shell">
+          <div class="diagram-toolbar">
+            <select id="diagram-scene" aria-label="链路场景">${diagramScenes.map(item => `<option value="${item.id}" ${item.id === scene.id ? "selected" : ""}>${esc(item.title)}</option>`).join("")}</select>
+            <div class="tool-group" aria-label="图表视角"><button data-mode="flow" class="${diagramMode === "flow" ? "active" : ""}">流程</button><button data-mode="sequence" class="${diagramMode === "sequence" ? "active" : ""}">时序</button></div>
+            <div class="tool-group" aria-label="信息密度"><button data-density="review" class="${diagramDensity === "review" ? "active" : ""}">复习</button><button data-density="standard" class="${diagramDensity === "standard" ? "active" : ""}">标准</button><button data-density="source" class="${diagramDensity === "source" ? "active" : ""}">源码</button></div>
+            <select id="diagram-filter" aria-label="关系筛选" ${diagramMode === "sequence" ? "disabled" : ""}><option value="all">全部关系</option><option value="boot">启动/配置</option><option value="async">异步事件</option><option value="ipc">进程间通信</option><option value="data">状态数据</option><option value="hardware">告警控制</option><option value="media">AI/视频</option></select>
+            <div class="toolbar-spacer"></div>
+            <div class="tool-group" aria-label="链路追踪"><button data-action="trace-prev" title="上一步" ${diagramTraceStep < 0 ? "disabled" : ""}>←</button><button data-action="trace-next" title="下一步" ${diagramTraceStep >= traceLength - 1 ? "disabled" : ""}>→</button><button data-action="trace-reset" title="回到开始">起点</button></div>
+            <div class="tool-group" aria-label="画布显示"><button data-action="toggle-inspector" class="${diagramExpanded ? "" : "active"}" title="显示或隐藏详情栏">详情栏</button><button data-action="zoom-out" title="缩小">−</button><button data-action="zoom-in" title="放大">＋</button><button data-action="fit" title="适配画布">适配</button><button data-action="reset" title="重置图表">重置</button></div>
+          </div>
+          <div class="diagram-stage ${diagramExpanded ? "expanded" : ""}">
+            <div id="diagram-viewport" class="diagram-viewport">
+              <svg id="diagram-svg" class="diagram-svg" viewBox="${viewBox.x} ${viewBox.y} ${viewBox.w} ${viewBox.h}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="${esc(scene.title)}">
+                ${diagramMode === "flow" ? flowSvg(scene) : sequenceSvg(scene)}
+              </svg>
+            </div>
+            <aside class="diagram-inspector">${renderDiagramInspector(scene)}</aside>
+          </div>
+          <div class="diagram-caption"><strong>看图结论：</strong>${esc(scene.conclusion)}
+            <div class="diagram-legend"><span><i class="legend-line"></i>直接调用/请求</span><span><i class="legend-line async"></i>异步事件</span><span><i class="legend-line alarm"></i>硬件告警</span><span><i class="legend-line media"></i>AI/视频</span><span><i class="legend-line data"></i>状态数据</span></div>
+          </div>
+        </div>`;
+      const filter = document.getElementById("diagram-filter");
+      if (filter) filter.value = diagramFilter;
+      bindDiagramEvents(scene);
+    }
+
+    function bindDiagramEvents(scene) {
+      document.getElementById("diagram-scene").addEventListener("change", event => {
+        activeDiagram = event.target.value;
+        diagramSelection = null;
+        diagramTraceStep = -1;
+        diagramFilter = "all";
+        diagramExpanded = true;
+        renderDiagrams();
+      });
+      document.querySelectorAll("[data-mode]").forEach(button => button.addEventListener("click", () => {
+        diagramMode = button.dataset.mode;
+        diagramSelection = null;
+        diagramTraceStep = -1;
+        diagramExpanded = true;
+        renderDiagrams();
+      }));
+      document.querySelectorAll("[data-density]").forEach(button => button.addEventListener("click", () => {
+        diagramDensity = button.dataset.density;
+        renderDiagrams();
+      }));
+      const filter = document.getElementById("diagram-filter");
+      if (filter) filter.addEventListener("change", event => { diagramFilter = event.target.value; diagramSelection = null; renderDiagrams(); });
+      document.querySelectorAll("[data-node]").forEach(nodeElement => {
+        const select = () => { diagramSelection = {kind: "node", id: nodeElement.dataset.node}; diagramExpanded = false; renderDiagrams(); };
+        nodeElement.addEventListener("click", event => { event.stopPropagation(); select(); });
+        nodeElement.addEventListener("keydown", event => { if (event.key === "Enter" || event.key === " ") select(); });
+        nodeElement.addEventListener("dblclick", event => {
+          event.stopPropagation();
+          const node = scene.nodes.find(item => item.id === nodeElement.dataset.node);
+          if (node?.drill && diagramScenes.some(item => item.id === node.drill)) {
+            activeDiagram = node.drill;
+            diagramSelection = null;
+            diagramTraceStep = -1;
+            diagramFilter = "all";
+            diagramExpanded = true;
+            renderDiagrams();
+          } else if (node?.module) {
+            activeModule = node.module;
+            showView("modules");
+          }
+        });
+      });
+      document.querySelectorAll("[data-edge]").forEach(edgeElement => edgeElement.addEventListener("click", event => {
+        event.stopPropagation();
+        diagramSelection = {kind: "edge", id: edgeElement.dataset.edge};
+        diagramExpanded = false;
+        renderDiagrams();
+      }));
+      document.querySelectorAll("[data-message]").forEach(messageElement => messageElement.addEventListener("click", event => {
+        event.stopPropagation();
+        diagramSelection = {kind: "message", id: messageElement.dataset.message};
+        diagramTraceStep = Number(messageElement.dataset.message);
+        diagramExpanded = false;
+        renderDiagrams();
+      }));
+      document.querySelectorAll("[data-action]").forEach(button => button.addEventListener("click", () => handleDiagramAction(button.dataset.action, scene)));
+      bindDiagramPanZoom(scene);
+    }
+
+    function handleDiagramAction(action, scene) {
+      const key = `${scene.id}:${diagramMode}`;
+      const limit = (diagramMode === "flow" ? scene.edges.length : scene.sequence.messages.length) - 1;
+      if (action === "trace-prev") diagramTraceStep = Math.max(-1, diagramTraceStep - 1);
+      if (action === "trace-next") diagramTraceStep = Math.min(limit, diagramTraceStep + 1);
+      if (action === "trace-reset") { diagramTraceStep = -1; diagramSelection = null; }
+      if (action === "toggle-inspector") diagramExpanded = !diagramExpanded;
+      if (action === "fit") diagramViewBoxes.set(key, diagramBounds(scene, diagramMode));
+      if (action === "reset") {
+        diagramViewBoxes.set(key, diagramBounds(scene, diagramMode));
+        diagramSelection = null;
+        diagramTraceStep = -1;
+        diagramFilter = "all";
+        diagramSearch = "";
+        diagramExpanded = true;
+        search.value = "";
+      }
+      if (action === "zoom-in" || action === "zoom-out") {
+        const current = diagramViewBoxes.get(key);
+        const factor = action === "zoom-in" ? .82 : 1.22;
+        const nextW = Math.max(260, Math.min(current.w * factor, diagramBounds(scene, diagramMode).w * 2.5));
+        const nextH = Math.max(180, Math.min(current.h * factor, diagramBounds(scene, diagramMode).h * 2.5));
+        diagramViewBoxes.set(key, {x: current.x + (current.w - nextW) / 2, y: current.y + (current.h - nextH) / 2, w: nextW, h: nextH});
+      }
+      renderDiagrams();
+    }
+
+    function bindDiagramPanZoom(scene) {
+      const viewport = document.getElementById("diagram-viewport");
+      const svg = document.getElementById("diagram-svg");
+      const key = `${scene.id}:${diagramMode}`;
+      let drag = null;
+      viewport.addEventListener("pointerdown", event => {
+        if (event.target.closest("[data-node],[data-edge],[data-message]")) return;
+        const current = diagramViewBoxes.get(key);
+        drag = {x: event.clientX, y: event.clientY, viewX: current.x, viewY: current.y};
+        viewport.classList.add("dragging");
+        viewport.setPointerCapture(event.pointerId);
+      });
+      viewport.addEventListener("pointermove", event => {
+        if (!drag) return;
+        const current = diagramViewBoxes.get(key);
+        const rect = viewport.getBoundingClientRect();
+        current.x = drag.viewX - (event.clientX - drag.x) * current.w / rect.width;
+        current.y = drag.viewY - (event.clientY - drag.y) * current.h / rect.height;
+        svg.setAttribute("viewBox", `${current.x} ${current.y} ${current.w} ${current.h}`);
+      });
+      const endDrag = () => { drag = null; viewport.classList.remove("dragging"); };
+      viewport.addEventListener("pointerup", endDrag);
+      viewport.addEventListener("pointercancel", endDrag);
+      viewport.addEventListener("click", event => {
+        if (event.target === svg) { diagramSelection = null; renderDiagrams(); }
+      });
+      viewport.addEventListener("wheel", event => {
+        event.preventDefault();
+        const current = diagramViewBoxes.get(key);
+        const rect = viewport.getBoundingClientRect();
+        const pointX = current.x + (event.clientX - rect.left) / rect.width * current.w;
+        const pointY = current.y + (event.clientY - rect.top) / rect.height * current.h;
+        const factor = event.deltaY < 0 ? .88 : 1.14;
+        const base = diagramBounds(scene, diagramMode);
+        const nextW = Math.max(260, Math.min(current.w * factor, base.w * 2.5));
+        const nextH = Math.max(180, Math.min(current.h * factor, base.h * 2.5));
+        const ratioX = (pointX - current.x) / current.w;
+        const ratioY = (pointY - current.y) / current.h;
+        current.x = pointX - ratioX * nextW;
+        current.y = pointY - ratioY * nextH;
+        current.w = nextW;
+        current.h = nextH;
+        svg.setAttribute("viewBox", `${current.x} ${current.y} ${current.w} ${current.h}`);
+      }, {passive: false});
+    }
+
+    function renderSequences() {
+      const scenario = scenarios.find(item => item.id === activeScenario);
+      document.getElementById("sequences").innerHTML = `
+        <div class="section-head"><div><h3>端到端执行时序</h3><p>选择一个真实场景，从触发源追到最终用户现象。</p></div></div>
+        <div class="scenario-tabs">${scenarios.map(item => `<button data-scenario="${item.id}" class="${item.id === activeScenario ? "active" : ""}">${esc(item.title)}</button>`).join("")}</div>
+        <div class="timeline">${scenario.steps.map(step => `<div class="timeline-item"><strong>${esc(step[0])}</strong><p>${esc(step[1])}</p></div>`).join("")}</div>
+        <div class="call-chain">${esc(scenario.chain)}</div>`;
+      document.querySelectorAll("[data-scenario]").forEach(button => button.addEventListener("click", () => { activeScenario = button.dataset.scenario; renderSequences(); }));
+    }
+
+    function renderEvidence() {
+      document.getElementById("evidence").innerHTML = `
+        <div class="section-head"><div><h3>功能与证据边界</h3><p>避免把源码、构建、部署和板端验收混成同一个结论。</p></div></div>
+        <div class="evidence-grid">${evidence.map(item => `<article class="evidence-row">${badge(item[1], item[1] === "verified" ? "已验证" : item[1] === "pending" ? "待复验" : "未实现")}<h4>${esc(item[0])}</h4><p>${esc(item[2])}</p></article>`).join("")}</div>
+        <div class="band" style="margin-top:16px"><h4>统一判断式</h4><p>源码存在 ≠ 编译成功 ≠ 部署成功 ≠ 板端运行 ≠ 异常场景验证。简历和面试只使用当前证据能支持的最窄结论。</p></div>`;
+    }
+
+    function renderReview() {
+      document.getElementById("review").innerHTML = `
+        <div class="section-head"><div><h3>五分钟复习卡</h3><p>先背主线，再回答问题，最后练习一分钟口述。</p></div></div>
+        <div class="review-grid">
+          <section class="review-block"><h4>十个核心词</h4><ol><li>项目 DTS/DTSI</li><li>safety_event_probe</li><li>threaded IRQ</li><li>delayed_work</li><li>wait queue + poll/read</li><li>SET_USER_ALARM ioctl</li><li>CaptureWorker + RKNN + ROI</li><li>system_state.json</li><li>SQLite event_id + MQTT 游标</li><li>RuntimeModel + HistoryModel + H264VideoBridge</li></ol></section>
+          <section class="review-block"><h4>十个自测问题</h4><ol>${reviewQuestions.map(item => `<li>${esc(item)}</li>`).join("")}</ol></section>
+          <section class="review-block" style="grid-column:1/-1"><h4>一分钟口述</h4><p style="margin:0;line-height:1.9;font-size:13px">我在 RK3568 和 Buildroot Linux 上实现了一个端侧工业安全辅助监测终端。BSP 侧建立 TFTP Image/DTB、NFS rootfs 与 eMMC 回退链；驱动侧实现 safety_event platform 字符设备，接入门磁 IRQ、BH1750、LED 和 PWM，提供 wait queue、poll/read/ioctl。用户态通过 hwmon、TTY 和 USB UVC 接入温湿度、毫米波雷达与摄像头，使用 RGA、RKNN 和固定 ROI 完成人员危险区检测，并把多源告警合并到本地声光输出。系统还提供统一 JSON 状态、SQLite 历史、MQTT 上报源码以及 Qt/QML HMI。我会明确区分已经板端验证、只有源码证据和仍需复验的功能。</p></section>
+        </div>`;
+    }
+
+    search.addEventListener("input", event => {
+      if (activeView === "modules") renderModules(event.target.value);
+      else if (activeView === "interfaces") renderInterfaces(event.target.value);
+      else if (activeView === "diagrams") { diagramSearch = event.target.value; renderDiagrams(); }
+      else if (event.target.value.trim()) showView("modules");
+    });
+    mobileNav.addEventListener("change", event => showView(event.target.value));
+
+    renderNavigation();
+    renderOverview();
+    renderDiagrams();
+    renderModules("");
+    renderInterfaces("");
+    renderSequences();
+    renderEvidence();
+    renderReview();
+  </script>
+</body>
+</html>

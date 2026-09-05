@@ -1,0 +1,1 @@
+rear energy f=18783 age=9 mode=basic state=3 move=158/33 static=43/100 detect=78

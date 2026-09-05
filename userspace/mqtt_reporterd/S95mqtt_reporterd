@@ -1,0 +1,88 @@
+#!/bin/sh
+
+DAEMON=/opt/mqtt_reporterd/mqtt_reporterd
+LIBDIR=/opt/mqtt_reporterd/lib
+ENVFILE=/etc/default/mqtt_reporterd
+PIDFILE=/run/mqtt_reporterd.pid
+LOGFILE=/tmp/mqtt_reporterd.log
+
+is_our_process() {
+    pid="$1"
+    [ -n "$pid" ] || return 1
+    [ -r "/proc/$pid/exe" ] || return 1
+    [ "$(readlink -f "/proc/$pid/exe" 2>/dev/null)" = "$DAEMON" ]
+}
+
+load_config() {
+    if [ -r "$ENVFILE" ]; then
+        # Root-owned configuration containing shell assignments.
+        . "$ENVFILE"
+    fi
+    export MQTT_DEVICE_ID MQTT_BROKER_HOST MQTT_BROKER_PORT MQTT_REPLAY_HISTORY
+    LD_LIBRARY_PATH="$LIBDIR${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+    export LD_LIBRARY_PATH
+}
+
+start() {
+    if [ -f "$PIDFILE" ]; then
+        pid=$(cat "$PIDFILE" 2>/dev/null)
+        if is_our_process "$pid"; then
+            echo "mqtt_reporterd already running (pid $pid)"
+            return 0
+        fi
+        rm -f "$PIDFILE"
+    fi
+
+    if [ ! -x "$DAEMON" ]; then
+        echo "mqtt_reporterd executable not found: $DAEMON" >&2
+        return 1
+    fi
+    load_config
+    "$DAEMON" >>"$LOGFILE" 2>&1 &
+    pid=$!
+    if ! echo "$pid" >"$PIDFILE"; then
+        kill "$pid" 2>/dev/null || true
+        echo "cannot create mqtt_reporterd pid file: $PIDFILE" >&2
+        return 1
+    fi
+    sleep 1
+    if ! is_our_process "$pid"; then
+        echo "mqtt_reporterd failed to stay running; see $LOGFILE" >&2
+        rm -f "$PIDFILE"
+        return 1
+    fi
+    echo "mqtt_reporterd started (pid $pid)"
+}
+
+stop() {
+    if [ ! -f "$PIDFILE" ]; then
+        echo "mqtt_reporterd is not running"
+        return 0
+    fi
+    pid=$(cat "$PIDFILE" 2>/dev/null)
+    if ! is_our_process "$pid"; then
+        echo "removing stale mqtt_reporterd pid file"
+        rm -f "$PIDFILE"
+        return 0
+    fi
+
+    kill "$pid" 2>/dev/null || true
+    remaining=5
+    while is_our_process "$pid" && [ "$remaining" -gt 0 ]; do
+        sleep 1
+        remaining=$((remaining - 1))
+    done
+    if is_our_process "$pid"; then
+        echo "mqtt_reporterd did not stop after 5 seconds; sending KILL" >&2
+        kill -KILL "$pid" 2>/dev/null || true
+    fi
+    rm -f "$PIDFILE"
+    echo "mqtt_reporterd stopped"
+}
+
+case "$1" in
+    start) start ;;
+    stop) stop ;;
+    restart) stop && start ;;
+    *) echo "usage: $0 {start|stop|restart}" >&2; exit 2 ;;
+esac

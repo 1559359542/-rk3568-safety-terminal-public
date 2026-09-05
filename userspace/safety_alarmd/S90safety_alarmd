@@ -1,0 +1,97 @@
+#!/bin/sh
+
+DAEMON="/opt/safety_alarmd"
+MODULE="/opt/safety_event.ko"
+DEVICE="/dev/safety_event"
+PIDFILE="/var/run/safety_alarmd.pid"
+RESTART_DELAY=2
+LOG_TAG="safety_alarmd"
+
+log_msg() {
+    logger -t "$LOG_TAG" "$*"
+}
+
+ensure_event_device() {
+    [ -e "$DEVICE" ] && return 0
+
+    if [ ! -r "$MODULE" ]; then
+        echo "Missing module: $MODULE"
+        return 1
+    fi
+
+    insmod "$MODULE" || return 1
+    [ -e "$DEVICE" ]
+}
+
+stop_supervisor() {
+    [ -n "${child_pid:-}" ] && kill -TERM "$child_pid" 2>/dev/null
+    [ -n "${child_pid:-}" ] && wait "$child_pid" 2>/dev/null
+    exit 0
+}
+
+supervise() {
+    trap stop_supervisor INT TERM
+
+    while :; do
+        "$DAEMON" &
+        child_pid=$!
+        wait "$child_pid"
+        exit_status=$?
+        child_pid=
+
+        [ "$exit_status" -eq 0 ] && exit 0
+
+        log_msg "exited with status $exit_status; restarting in ${RESTART_DELAY}s"
+        sleep "$RESTART_DELAY"
+    done
+}
+
+start() {
+    [ -x "$DAEMON" ] || {
+        echo "Missing executable: $DAEMON"
+        return 1
+    }
+
+    ensure_event_device || {
+        echo "Cannot provide $DEVICE"
+        return 1
+    }
+
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "safety_alarmd already running"
+        return 0
+    fi
+
+    rm -f "$PIDFILE"
+    start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "$0" -- supervise
+}
+
+stop() {
+    if [ ! -f "$PIDFILE" ]; then
+        echo "safety_alarmd not running"
+        return 0
+    fi
+
+    start-stop-daemon -K -q -p "$PIDFILE"
+    status=$?
+    rm -f "$PIDFILE"
+    return "$status"
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+    start|stop|restart)
+        "$1"
+        ;;
+    supervise)
+        supervise
+        ;;
+    *)
+        echo "Usage: $0 {start|stop|restart}"
+        exit 1
+        ;;
+esac

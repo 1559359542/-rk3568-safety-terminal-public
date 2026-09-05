@@ -1,0 +1,90 @@
+#!/bin/sh
+
+DAEMON="/opt/sqlite_eventd"
+PIDFILE="/var/run/sqlite_eventd.pid"
+DATA_DIR="/userdata/industrial_safety"
+ABNORMAL_EXIT_MARKER="$DATA_DIR/.sqlite_eventd_abnormal"
+RESTART_DELAY=2
+LOG_TAG="sqlite_eventd"
+
+# Leave thresholds empty until their values are approved by the project owner.
+SQLITE_EVENTD_TEMPERATURE_HIGH="${SQLITE_EVENTD_TEMPERATURE_HIGH:-}"
+SQLITE_EVENTD_HUMIDITY_HIGH="${SQLITE_EVENTD_HUMIDITY_HIGH:-}"
+SQLITE_EVENTD_LUX_LOW="${SQLITE_EVENTD_LUX_LOW:-}"
+SQLITE_EVENTD_LUX_HIGH="${SQLITE_EVENTD_LUX_HIGH:-}"
+
+log_msg() {
+    logger -t "$LOG_TAG" "$*"
+}
+
+prepare_data_dir() {
+    mkdir -p "$DATA_DIR" || return 1
+    chown root:root "$DATA_DIR" || return 1
+    chmod 0755 "$DATA_DIR" || return 1
+}
+
+stop_supervisor() {
+    [ -n "${child_pid:-}" ] && kill -TERM "$child_pid" 2>/dev/null
+    [ -n "${child_pid:-}" ] && wait "$child_pid" 2>/dev/null
+    exit 0
+}
+
+supervise() {
+    trap stop_supervisor INT TERM
+
+    while :; do
+        SQLITE_EVENTD_TEMPERATURE_HIGH="$SQLITE_EVENTD_TEMPERATURE_HIGH" \
+        SQLITE_EVENTD_HUMIDITY_HIGH="$SQLITE_EVENTD_HUMIDITY_HIGH" \
+        SQLITE_EVENTD_LUX_LOW="$SQLITE_EVENTD_LUX_LOW" \
+        SQLITE_EVENTD_LUX_HIGH="$SQLITE_EVENTD_LUX_HIGH" \
+        "$DAEMON" &
+        child_pid=$!
+        wait "$child_pid"
+        exit_status=$?
+        child_pid=
+
+        [ "$exit_status" -eq 0 ] && exit 0
+        : > "$ABNORMAL_EXIT_MARKER" || log_msg "cannot create abnormal-exit marker"
+        log_msg "exited with status $exit_status; restarting in ${RESTART_DELAY}s"
+        sleep "$RESTART_DELAY"
+    done
+}
+
+start() {
+    [ -x "$DAEMON" ] || {
+        echo "Missing executable: $DAEMON"
+        return 1
+    }
+
+    prepare_data_dir || {
+        echo "Cannot prepare $DATA_DIR"
+        return 1
+    }
+
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "sqlite_eventd already running"
+        return 0
+    fi
+
+    rm -f "$PIDFILE"
+    start-stop-daemon -b -m -S -q -p "$PIDFILE" -x "$0" -- supervise
+}
+
+stop() {
+    [ -f "$PIDFILE" ] || return 0
+    start-stop-daemon -K -q -p "$PIDFILE"
+    status=$?
+    rm -f "$PIDFILE"
+    return "$status"
+}
+
+restart() {
+    stop
+    start
+}
+
+case "$1" in
+    start|stop|restart) "$1" ;;
+    supervise) supervise ;;
+    *) echo "Usage: $0 {start|stop|restart}"; exit 1 ;;
+esac

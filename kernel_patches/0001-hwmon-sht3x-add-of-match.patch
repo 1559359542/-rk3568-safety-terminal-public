@@ -1,0 +1,29 @@
+diff --git a/drivers/hwmon/sht3x.c b/drivers/hwmon/sht3x.c
+--- a/drivers/hwmon/sht3x.c
++++ b/drivers/hwmon/sht3x.c
+@@ -28,5 +28,6 @@
+ #include <linux/kernel.h>
+ #include <linux/module.h>
++#include <linux/of.h>
+ #include <linux/slab.h>
+ #include <linux/jiffies.h>
+ #include <linux/platform_data/sht3x.h>
+@@ -770,7 +770,17 @@
+ MODULE_DEVICE_TABLE(i2c, sht3x_ids);
+
++static const struct of_device_id sht3x_of_match[] = {
++	{ .compatible = "sensirion,sht3x" },
++	{ .compatible = "sensirion,sts3x" },
++	{ }
++};
++MODULE_DEVICE_TABLE(of, sht3x_of_match);
++
+ static struct i2c_driver sht3x_i2c_driver = {
+-	.driver.name = "sht3x",
++	.driver = {
++		.name = "sht3x",
++		.of_match_table = sht3x_of_match,
++	},
+ 	.probe       = sht3x_probe,
+ 	.id_table    = sht3x_ids,
+ };

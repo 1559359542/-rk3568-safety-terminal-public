@@ -1,0 +1,1 @@
+"door":{"state":"online","logical_state":"inactive","alarm":false,"event_type":4,"event_source":2,"event_sequence":4941,"event_timestamp_ns":1788593857420249286,"sampled_monotonic_ms":5024652,"age_ms":208826,"quality":"event_seen"}

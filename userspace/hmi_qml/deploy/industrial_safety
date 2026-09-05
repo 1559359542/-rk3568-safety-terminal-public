@@ -1,0 +1,33 @@
+#!/bin/sh
+
+# This wrapper lets a standalone HMI behave like a factory systemui app.
+export QT_QPA_PLATFORM=wayland
+export WAYLAND_DISPLAY=wayland-0
+export XDG_RUNTIME_DIR=/run
+
+PIDFILE=/run/industrial_safety.pid
+
+if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+    exit 0
+fi
+
+echo $$ > "$PIDFILE"
+
+restore_systemui()
+{
+    rm -f "$PIDFILE"
+    (
+        sleep 1
+        QT_QPA_PLATFORM=wayland WAYLAND_DISPLAY=wayland-0 XDG_RUNTIME_DIR=/var/run \
+            /opt/ui/systemui >/tmp/systemui.restore.log 2>&1
+    ) &
+}
+
+trap restore_systemui 0 1 2 15
+
+# systemui's private Remote Objects protocol is not available to external apps.
+# Stop only the desktop before HMI takes the fullscreen Wayland surface.
+/etc/init.d/S50systemui stop
+sleep 1
+
+/opt/rk3568_hmi_qml/rk3568_hmi_qml >>/tmp/rk3568_hmi_qml.log 2>&1

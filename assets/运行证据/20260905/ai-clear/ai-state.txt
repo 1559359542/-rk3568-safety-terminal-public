@@ -1,0 +1,7 @@
+"ai_state":"running"
+"roi_event_count":4
+"roi_clear_count":4
+"preview_fps":29.971
+"roi_event_count":4
+"roi_clear_count":4
+"ai_alarm":false

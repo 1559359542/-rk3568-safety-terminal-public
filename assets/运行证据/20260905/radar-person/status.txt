@@ -1,0 +1,1 @@
+rear enabled user_alarm=on radar_alarm=on ai_alarm=off frame=18782 age_ms=80 mode=basic radar_state=2 detect_cm=69 move_cm=43 move_energy=27 static_cm=191 static_energy=100 calibration=idle module=not-queried parameters=unknown
