@@ -4,6 +4,42 @@
 
 > 本项目是辅助监测和异常检测演示原型，不是经过认证的工业安全系统。AI 结果用于疑似事件提示，不作为安全关键决策。
 
+## 项目亮点
+
+- 以 RK3568 Linux 为核心，把设备树、内核字符设备驱动、用户态服务和 Qt/QML HMI 串成可追踪的事件链路。
+- 覆盖 I2C、UART、GPIO、PWM、USB UVC/V4L2 等常见板级接口，并保留源码、配置、脚本和板端运行证据。
+- 将 SHT30（SHT3x 兼容链路）、BH1750、LD2410、门磁和 USB 摄像头统一接入告警状态模型。
+- 使用 RKNN + ROI 规则识别人员进入危险区域，AI 事件与雷达、门磁、温度告警由同一告警服务合并。
+- 预览链路在证据中达到约 29.99 FPS，事件同时写入 SQLite、通过 MQTT 上报并在 HMI 展示。
+
+## 技术栈
+
+`RK3568` · `Linux 4.19` · `Device Tree/DTSI` · `C/C++` · `GPIO/PWM` · `I2C` · `UART` · `USB UVC/V4L2` · `RGA` · `RKNN` ·  `SQLite` · `MQTT` · `systemd`
+
+## 系统功能概览
+
+| 功能域 | 实现内容 |
+| --- | --- |
+| 板级与驱动 | DTS/DTSI 描述 GPIO、PWM、I2C、UART、MIPI；`safety_event` 字符设备提供 `read/poll/ioctl` 和门磁中断事件 |
+| 环境与状态 | SHT30 温湿度、BH1750 光照、LD2410 UART 雷达、门磁采集与阈值告警 |
+| 视觉 AI | USB 摄像头经 OpenCV V4L2 backend 采集，RGA 缩放，RKNN YOLOv5 后处理，人员脚点 ROI 判断 |
+| 告警与数据 | `safety_alarmd` 合并 AI/雷达/门磁/温度来源，控制 GPIO/PWM，写入统一 JSON 状态、SQLite 历史并 MQTT 上报 |
+| HMI | Qt/QML 展示视频预览、实时环境、告警中心、历史记录和系统诊断 |
+
+## 项目成果与验证证据
+
+公开证据包位于 [`assets/运行证据/20260905/`](assets/运行证据/20260905/)，当前可核实：
+
+- 板端运行于 `Linux 4.19.232-safety-v1`、`aarch64` RK3568 EVB；设备节点包含 `/dev/safety_event`、`/dev/ttyS9`、`/dev/video9`。
+- USB UVC 摄像头协商为 `1280x720 MJPG`；状态快照记录 MPP H.264 预览约 `29.99 FPS`、延迟约 `31.5 ms`。
+- AI ROI 进入/清除、门磁打开/恢复、雷达有人/无人、温度超限/恢复和 SQLite 历史事件均有对应文本或 JSON 证据。
+- 证据用于说明一次板端演示状态，不等同于任意环境下的持续性能承诺；源码存在、编译成功、部署和异常场景验证仍按证据等级区分。
+
+## GitHub 仓库和在线展示入口
+
+- GitHub 仓库：<https://github.com/1559359542/-rk3568-safety-terminal-public>
+- GitHub Pages：<https://1559359542.github.io/-rk3568-safety-terminal-public/>
+
 ## 项目主线
 
 ```text
@@ -148,7 +184,8 @@ USB UVC/V4L2 -> RGA -> RKNN -> 人员检测与危险区域 ROI 判断
 
 ## 交互式项目说明
 
-- [RK3568 项目全链路阅读器](docs/12-RK3568项目全链路阅读器.html)
+- [RK3568 项目全链路阅读器](docs/index.html)
+- [简历项目描述与面试介绍](docs/resume-project-description.md)
 
 ## 进一步阅读
 
