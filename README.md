@@ -185,7 +185,6 @@ USB UVC/V4L2 -> RGA -> RKNN -> 人员检测与危险区域 ROI 判断
 ## 交互式项目说明
 
 - [RK3568 项目全链路阅读器](docs/index.html)
-- [简历项目描述与面试介绍](docs/resume-project-description.md)
 
 ## 进一步阅读
 
